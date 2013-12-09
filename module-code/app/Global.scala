@@ -1,5 +1,6 @@
 import akka.actor.Props
-import mirari.sockjs.{DisabledWebsocketEchoService, EchoService, SockJS}
+import mirari.sockjs.echo.{DisabledWebsocketEchoService, EchoService}
+import mirari.sockjs.SockJS
 import play.api.GlobalSettings
 
 /**

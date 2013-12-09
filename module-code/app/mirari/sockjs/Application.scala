@@ -1,12 +1,14 @@
 package mirari.sockjs
 
 import play.api.mvc._
-import play.api.libs.json.Json
+import play.api.libs.json.{JsArray, Json}
 import org.joda.time.DateTime
 
 object Application extends Controller {
 
   import SockJS._
+  import SockJSService._
+  import SockJSSessionActor._
 
   val ETagValue = "asdasdasdasd"
 
@@ -45,7 +47,7 @@ object Application extends Controller {
           Ok(iframeBody).withHeaders(
             CONTENT_TYPE -> "text/html; charset=UTF-8",
             ETAG -> ETagValue,
-            "Cache-Control" -> "public; max-age=31536000",
+            CACHE_CONTROL -> "public; max-age=31536000",
           EXPIRES -> DateTime.now().plusYears(1).toString
           )
       }
@@ -57,9 +59,9 @@ object Application extends Controller {
         ACCESS_CONTROL_ALLOW_ORIGIN -> request.headers.get(ORIGIN).filter(_ != "null").getOrElse("*"),
         ACCESS_CONTROL_ALLOW_CREDENTIALS -> "true",
       ACCESS_CONTROL_ALLOW_METHODS -> "OPTIONS, GET",
-        "Cache-Control" -> "public; max-age=31536000",
+        CACHE_CONTROL -> "public; max-age=31536000",
         EXPIRES -> DateTime.now().plusYears(1).toString,
-      "access-control-max-age" -> "1000001"
+      ACCESS_CONTROL_MAX_AGE -> "1000001"
       )
   }
 
@@ -68,7 +70,7 @@ object Application extends Controller {
       SockJS.askService(service, InfoRequest).map {
         case i: Info => Ok(Json.toJson(i)).withHeaders(
           CONTENT_TYPE -> "application/json; charset=UTF-8",
-          "Cache-Control" -> "no-store, no-cache, must-revalidate, max-age=0",
+          CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0",
           ACCESS_CONTROL_ALLOW_ORIGIN -> request.headers.get(ORIGIN).filter(_ != "null").getOrElse("*"),
           ACCESS_CONTROL_ALLOW_CREDENTIALS -> "true"
         )
@@ -97,15 +99,21 @@ object Application extends Controller {
   }
 
   def xhr(service: String, server: String, session: String) = Action {
-    NotImplemented
+    Ok(OpenFrame)
   }
 
   def xhrOpts(service: String, server: String, session: String) = Action {
     NotImplemented
   }
 
-  def xhr_send(service: String, server: String, session: String) = Action {
-    NotImplemented
+  def xhr_send(service: String, server: String, session: String) = Action(parse.json) {
+    request =>
+      request.body match {
+        case a: JsArray =>
+          SockJS.message(service, IncomingMessage(a))
+        case _ =>
+      }
+    NoContent
   }
 
   def xhr_sendOpts(service: String, server: String, session: String) = Action {
@@ -134,7 +142,7 @@ object Application extends Controller {
 
   def notFound(any: String) = Action {
     request =>
-      play.api.Logger.error(request.uri)
+      //play.api.Logger.error(request.uri)
       NotFound
   }
 
