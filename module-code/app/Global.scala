@@ -1,6 +1,5 @@
-import akka.actor.Props
-import mirari.sockjs.echo.{DisabledWebsocketEchoService, EchoService}
-import mirari.sockjs.SockJS
+import mirari.sockjs.handler.EchoHandler
+import mirari.sockjs.SockJsSystem
 import play.api.GlobalSettings
 
 /**
@@ -8,8 +7,9 @@ import play.api.GlobalSettings
  * @since 12/9/13
  */
 object Global extends GlobalSettings {
-  override def onStart(app : play.api.Application) {
-    SockJS.registerService("echo", Props[EchoService])
-    SockJS.registerService("disabled_websocket_echo", Props[DisabledWebsocketEchoService])
+  override def onStart(app: play.api.Application) {
+    play.api.Logger.debug("Global.onStart()")
+
+    SockJsSystem.initService("echo", classOf[EchoHandler])
   }
 }
