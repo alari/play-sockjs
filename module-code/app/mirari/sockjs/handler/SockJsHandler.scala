@@ -10,17 +10,24 @@ import play.api.mvc.RequestHeader
  * @since 12/10/13
  */
 abstract class SockJsHandler extends Actor {
-  def receive = {
+  def receive = basic orElse handle
+
+  def basic: Receive = {
     case r: RequestHeader =>
       onRequest(r)
 
     case m: JsValue =>
-      play.api.Logger.debug("--- HANDLE "+m)
+      play.api.Logger.debug("--- HANDLE " + m)
       onMessage(m)
   }
 
+  def handle: Receive = {
+    case _ =>
+      play.api.Logger.debug("Unknown message in handler")
+  }
+
   def onRequest(request: RequestHeader) {
-    play.api.Logger.debug("request: "+request)
+    play.api.Logger.debug("request: " + request)
   }
 
   def onMessage(msg: JsValue)
