@@ -22,8 +22,9 @@ GET            /:service/$server<[^.]+>/$session<[^.]+>/eventsource          mir
 GET            /:service/$server<[^.]+>/$session<[^.]+>/htmlfile             mirari.sockjs.transport.HtmlFileController.htmlfile(service, server, session)
 GET            /:service/$server<[^.]+>/$session<[^.]+>/websocket            mirari.sockjs.transport.WebSocketController.websocket(service, server, session)
 
-GET            /                                                             mirari.sockjs.controller.TestController.index
 
+
+GET            /                                                             mirari.sockjs.controller.TestController.index
 
 GET            /*any                                                         mirari.sockjs.controller.IFrameController.nofound(any)
 POST           /*any                                                         mirari.sockjs.controller.IFrameController.nofound(any)
