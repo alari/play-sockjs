@@ -1,7 +1,6 @@
 package mirari.sockjs.controller
 
 import play.api.mvc.{WebSocket, Controller}
-import mirari.sockjs.SockJS
 import play.api.libs.iteratee.{Enumerator, Input, Done}
 import scala.concurrent.Future
 import concurrent.ExecutionContext.Implicits.global
@@ -24,7 +23,7 @@ object WebSocketController extends Controller{
         case Some("close") =>
           stopSocket
         case _ =>
-          SockJS.openSocket(service, session)
+          stopSocket
       }
   }
 

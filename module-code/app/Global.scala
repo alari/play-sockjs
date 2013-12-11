@@ -1,3 +1,4 @@
+import akka.actor.Props
 import mirari.sockjs.handler.EchoHandler
 import mirari.sockjs.SockJsSystem
 import play.api.GlobalSettings
@@ -10,6 +11,6 @@ object Global extends GlobalSettings {
   override def onStart(app: play.api.Application) {
     play.api.Logger.debug("Global.onStart()")
 
-    SockJsSystem.initService("echo", classOf[EchoHandler])
+    SockJsSystem.initService("echo", Props[EchoHandler])
   }
 }

@@ -4,7 +4,6 @@ import akka.actor.{ActorRef, Props, ActorSystem}
 import play.api.libs.json.Json
 import scala.util.Random
 import mirari.sockjs.service.SockJsService
-import mirari.sockjs.handler.Handler
 
 /**
  * @author alari
@@ -13,10 +12,10 @@ import mirari.sockjs.handler.Handler
 object SockJsSystem {
   lazy val system = ActorSystem("mirari-sockjs")
 
-  val services = collection.mutable.Map[String, ActorRef]()
+  private[this] var services = Map[String, ActorRef]()
 
-  def initService(name: String, handler: Class[_ <: Handler], websocket: Boolean = true, cookieNeeded: Boolean = true) {
-    services(name) = system.actorOf(Props(classOf[SockJsService], handler, websocket, cookieNeeded), name)
+  def initService(name: String, handler: Props, websocket: Boolean = true, cookieNeeded: Boolean = true) {
+    services += name -> system.actorOf(Props(new SockJsService(handler, websocket, cookieNeeded)), name)
   }
 
   def service(name: String) = services.get(name)

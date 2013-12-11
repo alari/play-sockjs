@@ -4,6 +4,7 @@ import play.api.mvc._
 import java.security.MessageDigest
 import org.joda.time.DateTime
 import play.api.Play.current
+import org.apache.commons.lang3.StringUtils
 
 /**
  * @author alari
@@ -33,7 +34,9 @@ object IFrameController extends Controller{
 </html>""".replaceAll("""(?m)\s+$""", "")
 
     lazy val etag: String = {
-      new String(MessageDigest.getInstance("SHA").digest(content.getBytes))
+      import org.apache.commons.codec.binary.Base64
+
+      new String(new Base64().encode(MessageDigest.getInstance("SHA").digest(content.getBytes)))
     }
 
   }

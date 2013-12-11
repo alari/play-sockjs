@@ -8,15 +8,14 @@ import com.cloud9ers.play2.sockjs.JsonCodec
 import play.api.libs.json.JsArray
 import scala.Some
 import scala.concurrent.duration.DurationInt
-import mirari.sockjs.handler.Handler
 
 /**
  * @author alari
  * @since 12/10/13
  */
-class SockJsSession(handlerProps: Class[_ <: Handler]) extends Actor {
+class SockJsSession(handlerProps: Props) extends Actor {
 
-  val handler = context.actorOf(Props(handlerProps, self), "handler")
+  val handler = context.actorOf(handlerProps, "handler")
 
   val heartBeatPeriod = 25000
 
@@ -56,6 +55,10 @@ class SockJsSession(handlerProps: Class[_ <: Handler]) extends Actor {
       logger.debug(s"state: CONNECTING, sender: $sender, message: ${SockJsSession.Register}")
       (register andThen sendOpenMessage andThen resetListener andThen becomeOpen)(sender)
 
+    case c@SockJsSession.CreateAndRegister(props, name) =>
+      logger.debug(s"state: CONNECTING, sender: $sender, message: $c")
+      sender ! context.actorOf(props, name)
+
     case c: SockJsSession.Close ⇒
       logger.debug(s"state: CONNECTING, sender: $sender, message: $c")
       becomeClosed.apply()
@@ -73,12 +76,10 @@ class SockJsSession(handlerProps: Class[_ <: Handler]) extends Actor {
 
 
     case s@SockJsSession.Send(msgs) ⇒
-      // OUTPUT
       logger.debug(s"state: OPEN, sender: $sender, message: $s")
       handleMessages(msgs)
 
     case w@SockJsSession.Write(msg) ⇒
-      // INPUT
       logger.debug(s"state: OPEN, sender: $sender, message: $w")
       enqueue(msg)
       transportListener map (writePendingMessages andThen resetListener)
@@ -189,12 +190,15 @@ class SockJsSession(handlerProps: Class[_ <: Handler]) extends Actor {
 }
 
 object SockJsSession {
+
   // JSClient send
   case class Send(msg: JsValue)
 
   // register the transport actor and holds for the next message to write to the JSClient
   case object Register
 
+  // creates a child transport actor and registers it
+  case class CreateAndRegister(props: Props, name: String)
 
   case object Unregister
 

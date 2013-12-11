@@ -1,12 +1,8 @@
 package mirari.sockjs.controller
 
 import play.api.mvc.{Action, Controller}
-import mirari.sockjs.SockJS
-import mirari.sockjs.SockJSService.RetrieveSessionMessages
-import mirari.sockjs.frame.Frame
-import mirari.sockjs.SockJSSessionActor.InOut
-import play.api.libs.EventSource
 import concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 /**
  * @author alari
@@ -22,14 +18,7 @@ object ChunkingController extends Controller{
   }
 
   def eventsource(service: String, server: String, session: String) = Action.async {
-    SockJS.askService(service, RetrieveSessionMessages(session)).map {
-      case f: Frame => Ok(f)
-      case InOut(in, out) =>
-        Ok.chunked(out &> EventSource())
-      case a =>
-        play.api.Logger.error(a.toString + "????????")
-        Ok
-    }
+    Future(NotImplemented)
   }
 
   def htmlfile(service: String, server: String, session: String) = Action {

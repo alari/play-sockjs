@@ -2,13 +2,12 @@ package mirari.sockjs.service
 
 import akka.actor.{Actor, Props}
 import mirari.sockjs.SockJsSystem
-import mirari.sockjs.handler.Handler
 
 /**
  * @author alari
  * @since 12/10/13
  */
-class SockJsService(handler: Class[_ <: Handler], websocket: Boolean, cookieNeeded: Boolean) extends Actor {
+class SockJsService(handler: Props, websocket: Boolean, cookieNeeded: Boolean) extends Actor {
 
   import SockJsService._
 
@@ -26,7 +25,7 @@ class SockJsService(handler: Class[_ <: Handler], websocket: Boolean, cookieNeed
       context.child(id) match {
         case Some(a) => sender ! a
         case None =>
-          sender ! context.actorOf(Props(classOf[SockJsSession], handler), id)
+          sender ! context.actorOf(Props(new SockJsSession(handler)), id)
       }
   }
 }
