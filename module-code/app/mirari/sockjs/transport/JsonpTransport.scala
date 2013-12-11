@@ -1,12 +1,16 @@
-package mirari.sockjs.controller
+package mirari.sockjs.transport
 
-import play.api.mvc.{Action, Controller}
+import play.api.mvc.Action
 
 /**
  * @author alari
- * @since 12/10/13
+ * @since 12/11/13
  */
-object JsonpController extends Controller{
+class JsonpTransport {
+
+}
+
+object JsonpController extends TransportController {
   def jsonp(service: String, server: String, session: String) = Action {
     NotImplemented
   }

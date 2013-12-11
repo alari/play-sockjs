@@ -4,12 +4,12 @@ GET            /:service/iframe$any<[0-9-.a-z_]*>.html                       mir
 OPTIONS        /:service/info                                                mirari.sockjs.controller.InfoController.infoOpts(service)
 GET            /:service/info                                                mirari.sockjs.controller.InfoController.info(service)
 
-POST           /:service/chunking_test                                       mirari.sockjs.controller.ChunkingController.chunking_test(service)
-OPTIONS        /:service/chunking_test                                       mirari.sockjs.controller.ChunkingController.chunking_test(service)
+POST           /:service/chunking_test                                       mirari.sockjs.controller.TestController.chunking_test(service)
+OPTIONS        /:service/chunking_test                                       mirari.sockjs.controller.TestController.chunking_test(service)
 GET            /:service/websocket                                           mirari.sockjs.transport.WebSocketController.rootWebsocket(service)
 
-GET            /:service/$server<[^.]+>/$session<[^.]+>/jsonp                mirari.sockjs.controller.JsonpController.jsonp(service, server, session)
-POST           /:service/$server<[^.]+>/$session<[^.]+>/jsonp_send           mirari.sockjs.controller.JsonpController.jsonp_send(service, server, session)
+GET            /:service/$server<[^.]+>/$session<[^.]+>/jsonp                mirari.sockjs.transport.JsonpController.jsonp(service, server, session)
+POST           /:service/$server<[^.]+>/$session<[^.]+>/jsonp_send           mirari.sockjs.transport.JsonpController.jsonp_send(service, server, session)
 
 POST           /:service/$server<[^.]+>/$session<[^.]+>/xhr                  mirari.sockjs.transport.XhrController.xhr(service, server, session)
 OPTIONS        /:service/$server<[^.]+>/$session<[^.]+>/xhr                  mirari.sockjs.transport.XhrController.xhrOpts(service, server, session)
@@ -18,8 +18,8 @@ OPTIONS        /:service/$server<[^.]+>/$session<[^.]+>/xhr_send             mir
 POST           /:service/$server<[^.]+>/$session<[^.]+>/xhr_streaming        mirari.sockjs.transport.XhrController.xhr_streaming(service, server, session)
 OPTIONS        /:service/$server<[^.]+>/$session<[^.]+>/xhr_streaming        mirari.sockjs.transport.XhrController.xhr_streamingOpts(service, server, session)
 
-GET            /:service/$server<[^.]+>/$session<[^.]+>/eventsource          mirari.sockjs.controller.ChunkingController.eventsource(service, server, session)
-GET            /:service/$server<[^.]+>/$session<[^.]+>/htmlfile             mirari.sockjs.controller.ChunkingController.htmlfile(service, server, session)
+GET            /:service/$server<[^.]+>/$session<[^.]+>/eventsource          mirari.sockjs.transport.EventSourceController.eventsource(service, server, session)
+GET            /:service/$server<[^.]+>/$session<[^.]+>/htmlfile             mirari.sockjs.transport.HtmlFileController.htmlfile(service, server, session)
 GET            /:service/$server<[^.]+>/$session<[^.]+>/websocket            mirari.sockjs.transport.WebSocketController.websocket(service, server, session)
 
 GET            /                                                             mirari.sockjs.controller.TestController.index
