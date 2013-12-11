@@ -35,10 +35,11 @@ abstract class TransportActor extends Actor {
    */
   def sendFrame(m: String): Boolean
 
+  def doRegister() = session ! SockJsSession.Register
+
   def receive: Receive = {
     case SockJsSession.Register =>
-      play.api.Logger.debug("+ "+self)
-      session ! SockJsSession.Register
+      doRegister()
 
     case SockJsSession.OpenMessage =>
       if (sendFrame(SockJsFrames.OPEN_FRAME)) session ! SockJsSession.Register
@@ -147,6 +148,28 @@ class TransportController extends Controller {
         }
       case None => Future successful NotFound("service")
     }
+
+  def getSession(service: String, session: String): Future[Option[ActorRef]] =
+    SockJsSystem.service(service).map {
+      s =>
+        s ? SockJsService.GetSession(session) map {
+          case ss: ActorRef =>
+            Some(ss)
+          case SockJsService.SessionNotFound =>
+            None
+        }
+    }.getOrElse(Future.successful(None))
+
+  def getOrCreateSession(service: String, session: String): Future[Option[ActorRef]] =
+    SockJsSystem.service(service).map {
+      s =>
+        s ? SockJsService.GetOrCreateSession(session) map {
+          case ss: ActorRef =>
+            Some(ss)
+          case SockJsService.SessionNotFound =>
+            None
+        }
+    }.getOrElse(Future.successful(None))
 }
 
 object Transport {

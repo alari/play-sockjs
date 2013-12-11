@@ -7,7 +7,6 @@ package mirari.sockjs.transport
 
 import scala.Array.canBuildFrom
 import scala.concurrent.Promise
-import scala.concurrent.duration.DurationInt
 import akka.actor.{ActorRef, PoisonPill, Props, actorRef2Scala}
 import play.api.libs.iteratee.Concurrent
 import play.api.libs.json.Json
@@ -34,12 +33,9 @@ class XhrStreamingActor(channel: Concurrent.Channel[Array[Byte]], maxBytesStream
   extends TransportActor {
   var bytesSent = 0
 
-  override def preStart() {
-    import scala.language.postfixOps
-    context.system.scheduler.scheduleOnce(100 milliseconds) {
-      channel push SockJsFrames.XHR_STREAM_H_BLOCK
-      session ! SockJsSession.Register
-    }
+  override def doRegister() {
+    channel push SockJsFrames.XHR_STREAM_H_BLOCK
+    session ! SockJsSession.Register
   }
 
   def sendFrame(msg: String) = {
@@ -78,13 +74,13 @@ object XhrController extends TransportController {
 
   def xhr(service: String, server: String, session: String) = Action.async {
     implicit request =>
-      play.api.Logger.debug("_____xhr_polling = "+session)
+      play.api.Logger.debug("_____xhr_polling = " + session)
       withSessionFlat(service, session) {
         ss =>
           play.api.Logger.debug(ss.toString())
           val promise = Promise[String]()
-        val props = Props(classOf[XhrPollingActor], promise)
-        play.api.Logger.debug("we are there")
+          val props = Props(classOf[XhrPollingActor], promise)
+          play.api.Logger.debug("we are there")
           ss ! SockJsSession.CreateAndRegister(props, "xhr_polling")
           promise.future.map {
             m ⇒
@@ -138,7 +134,7 @@ object XhrController extends TransportController {
 
   def xhr_streaming(service: String, server: String, session: String) = Action.async {
     implicit request =>
-      withExistingSessionFlat(service, session) {
+      withSessionFlat(service, session) {
         ss =>
           val (enum, channel) = Concurrent.broadcast[Array[Byte]]
           ss ? SockJsSession.CreateAndRegister(Props(new XhrStreamingActor(channel, maxBytesStreaming)), "xhr_streaming") map {
