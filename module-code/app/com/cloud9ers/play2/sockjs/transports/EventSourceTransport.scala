@@ -2,12 +2,11 @@ package com.cloud9ers.play2.sockjs.transports
 
 import scala.concurrent.duration.DurationInt
 
-import com.cloud9ers.play2.sockjs.{ Session, SockJsPlugin }
+import com.cloud9ers.play2.sockjs.Session
 
-import akka.actor.{ ActorRef, PoisonPill, Props, actorRef2Scala }
-import play.api.Play.current
+import akka.actor.{ActorRef, PoisonPill, Props, actorRef2Scala}
 import play.api.libs.iteratee.Concurrent
-import play.api.mvc.{ AnyContent, Request }
+import play.api.mvc.{AnyContent, Request}
 import concurrent.ExecutionContext.Implicits.global
 
 
