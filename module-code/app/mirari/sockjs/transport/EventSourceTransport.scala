@@ -39,7 +39,7 @@ object EventSourceController extends TransportController {
         ss =>
           val (enum, channel) = Concurrent.broadcast[String]
 
-          ss ? SockJsSession.CreateAndRegister(Props(new EventSourceTransport(channel, 127000)), "eventsource") map {
+          ss ? SockJsSession.CreateAndRegister(Props(new EventSourceTransport(channel, 127000)), "eventsource", request) map {
             case transport: ActorRef =>
               Ok.chunked(
                 enum &> EventSource()

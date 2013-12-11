@@ -62,7 +62,7 @@ object HtmlFileController extends TransportController {
           request.getQueryString("c").map {
             callback =>
               val (enum, channel) = Concurrent.broadcast[String]
-              ss ? SockJsSession.CreateAndRegister(Props(new HtmlFileTransport(callback, channel, 12700)), "htmlfile") map {
+              ss ? SockJsSession.CreateAndRegister(Props(new HtmlFileTransport(callback, channel, 12700)), "htmlfile", request) map {
                 case transport: ActorRef =>
                   Ok.chunked(enum).as("text/html; charset=UTF-8")
                     .withHeaders(CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0")

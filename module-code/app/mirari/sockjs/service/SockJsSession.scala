@@ -8,6 +8,7 @@ import play.api.libs.json.JsArray
 import scala.Some
 import scala.concurrent.duration.DurationInt
 import mirari.sockjs.frames.JsonCodec
+import play.api.mvc.RequestHeader
 
 /**
  * @author alari
@@ -58,9 +59,9 @@ class SockJsSession(handlerProps: Props) extends Actor {
       logger.debug(s"state: CONNECTING, sender: $sender, message: ${SockJsSession.Register}")
       (register andThen sendOpenMessage andThen resetListener andThen becomeOpen)(sender)
 
-    case c@SockJsSession.CreateAndRegister(props, name) =>
+    case c@SockJsSession.CreateAndRegister(props, name, request) =>
       logger.debug(s"state: CONNECTING, sender: $sender, message: $c")
-      createAndRegister(props, name)
+      createAndRegister(props, name, request)
 
 
     case c: SockJsSession.Close ⇒
@@ -73,9 +74,9 @@ class SockJsSession(handlerProps: Props) extends Actor {
   }
 
   def open: Receive = {
-    case c@SockJsSession.CreateAndRegister(props, name) =>
+    case c@SockJsSession.CreateAndRegister(props, name, request) =>
       logger.debug(s"state: OPEN, sender: $sender, message: $c")
-      createAndRegister(props, name)
+      createAndRegister(props, name, request)
 
     // Registering a transport
     case SockJsSession.Register ⇒
@@ -107,9 +108,9 @@ class SockJsSession(handlerProps: Props) extends Actor {
   }
 
   def closed: Receive = {
-    case c@SockJsSession.CreateAndRegister(props, name) =>
+    case c@SockJsSession.CreateAndRegister(props, name, request) =>
       logger.debug(s"state: CLOSED, sender: $sender, message: $c")
-      createAndRegister(props, name)
+      createAndRegister(props, name, request)
 
     case SockJsSession.Register if !openWriten ⇒
       logger.debug(s"state: CLOSED, sender: $sender, message: ${SockJsSession.Register}, openWriten: $openWriten")
@@ -120,10 +121,11 @@ class SockJsSession(handlerProps: Props) extends Actor {
       (register andThen sendCloseMessage andThen resetListener)(sender)
   }
 
-  def createAndRegister(props: Props, name: String) = {
+  def createAndRegister(props: Props, name: String, request: RequestHeader) = {
     val t = context.actorOf(props, name + transportId)
     t ! SockJsSession.Register
     sender ! t
+    handler ! request
     transportId += 1
   }
 
@@ -225,7 +227,7 @@ object SockJsSession {
   case object Register
 
   // creates a child transport actor and registers it
-  case class CreateAndRegister(props: Props, name: String)
+  case class CreateAndRegister(props: Props, name: String, request: RequestHeader)
 
   case object Unregister
 

@@ -20,12 +20,4 @@ object TestController extends Controller {
         </body>
       </html>).withHeaders(CONTENT_TYPE -> "text/html; encoding=UTF-8")
   }
-
-  def chunking_testOpts(service: String) = Action {
-    NotImplemented
-  }
-
-  def chunking_test(service: String) = Action {
-    NotImplemented
-  }
 }

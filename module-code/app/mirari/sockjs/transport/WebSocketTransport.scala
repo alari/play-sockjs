@@ -45,7 +45,7 @@ object WebSocketController extends TransportController{
             case Some(ss) =>
               val (out, outChannel) = Concurrent.broadcast[String]
 
-              ss ? SockJsSession.CreateAndRegister(Props(new WebSocketTransport(outChannel)), "websocket") map {
+              ss ? SockJsSession.CreateAndRegister(Props(new WebSocketTransport(outChannel)), "websocket", request) map {
                 case transport: ActorRef =>
                   val in = Iteratee.foreach[String]{s =>
                     ss ! SockJsSession.Incoming(JsonCodec.decodeJson(s))

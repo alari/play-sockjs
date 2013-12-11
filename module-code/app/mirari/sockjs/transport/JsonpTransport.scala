@@ -34,7 +34,7 @@ object JsonpController extends TransportController {
           request.getQueryString("c").map {
             callback =>
               val promise = Promise[String]()
-              ss ? SockJsSession.CreateAndRegister(Props(new JsonpTransport(promise)), "jsonp") flatMap {
+              ss ? SockJsSession.CreateAndRegister(Props(new JsonpTransport(promise)), "jsonp", request) flatMap {
                 case transport: ActorRef =>
                   promise.future.map(m =>
                     Ok( s"""${callback}("${escapeJavaScript(m)}");\r\n""") // callback(\\"m\\");\r\n

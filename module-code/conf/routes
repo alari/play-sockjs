@@ -4,8 +4,6 @@ GET            /:service/iframe$any<[0-9-.a-z_]*>.html                       mir
 OPTIONS        /:service/info                                                mirari.sockjs.controller.InfoController.infoOpts(service)
 GET            /:service/info                                                mirari.sockjs.controller.InfoController.info(service)
 
-POST           /:service/chunking_test                                       mirari.sockjs.controller.TestController.chunking_test(service)
-OPTIONS        /:service/chunking_test                                       mirari.sockjs.controller.TestController.chunking_test(service)
 GET            /:service/websocket                                           mirari.sockjs.transport.WebSocketController.rootWebsocket(service)
 
 GET            /:service/$server<[^.]+>/$session<[^.]+>/jsonp                mirari.sockjs.transport.JsonpController.jsonp(service, server, session)

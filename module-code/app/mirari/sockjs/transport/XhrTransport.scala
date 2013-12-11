@@ -81,7 +81,7 @@ object XhrController extends TransportController {
           val promise = Promise[String]()
           val props = Props(classOf[XhrPollingActor], promise)
           play.api.Logger.debug("we are there")
-          ss ! SockJsSession.CreateAndRegister(props, "xhr_polling")
+          ss ! SockJsSession.CreateAndRegister(props, "xhr_polling", request)
           promise.future.map {
             m ⇒
               Ok(m.toString)
@@ -137,7 +137,7 @@ object XhrController extends TransportController {
       withSessionFlat(service, session) {
         ss =>
           val (enum, channel) = Concurrent.broadcast[Array[Byte]]
-          ss ? SockJsSession.CreateAndRegister(Props(new XhrStreamingActor(channel, maxBytesStreaming)), "xhr_streaming") map {
+          ss ? SockJsSession.CreateAndRegister(Props(new XhrStreamingActor(channel, maxBytesStreaming)), "xhr_streaming", request) map {
             case transport: ActorRef =>
               Ok.chunked(enum.onDoneEnumerating(transport ! PoisonPill))
                 .withHeaders(
