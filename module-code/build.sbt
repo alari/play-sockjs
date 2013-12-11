@@ -1,6 +1,6 @@
 name := "play-sockjs"
 
-organization := "mirari"
+organization := "ru.mirari"
 
 version := "1.0-SNAPSHOT"
 

@@ -28,8 +28,11 @@ object WebSocketController extends TransportController{
 
   def rootWebsocket(service: String) = WebSocket.async[String] {
     implicit request =>
-
-      stopSocket
+      val (out, outChannel) = Concurrent.broadcast[String]
+      val in = Iteratee.foreach[String]{s =>
+        outChannel push s
+      }
+      Future.successful((in, out))
   }
 
   def websocket(service: String, server: String, session: String) = WebSocket.async[String] {
@@ -44,7 +47,9 @@ object WebSocketController extends TransportController{
 
               ss ? SockJsSession.CreateAndRegister(Props(new WebSocketTransport(outChannel)), "websocket") map {
                 case transport: ActorRef =>
-                  val in = Iteratee.foreach[String](s => ss ! SockJsSession.Incoming(JsonCodec.decodeJson(s))) map {
+                  val in = Iteratee.foreach[String]{s =>
+                    ss ! SockJsSession.Incoming(JsonCodec.decodeJson(s))
+                  } map {
                     _ =>
                     // Kill this actor when connection is broken
                       transport ! PoisonPill
