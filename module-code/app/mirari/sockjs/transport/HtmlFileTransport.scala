@@ -2,7 +2,6 @@ package mirari.sockjs.transport
 
 import play.api.mvc.Action
 import play.api.libs.iteratee.Concurrent
-import com.cloud9ers.play2.sockjs.Session
 import mirari.sockjs.frames.StringEscapeUtils
 import scala.concurrent.Future
 import mirari.sockjs.service.SockJsSession
@@ -32,7 +31,7 @@ class HtmlFileTransport(callback: String, channel: Concurrent.Channel[String], m
     window.onload = function() {c.stop();};
   </script>
     """
-    session ! Session.Register
+    super.doRegister()
   }
 
   def sendFrame(m: String): Boolean = {
