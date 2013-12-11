@@ -7,5 +7,8 @@ import play.api.libs.json.JsValue
  * @since 12/10/13
  */
 class EchoHandler extends Handler {
-  def onMessage(msg: JsValue) = send(msg)
+  def onMessage(msg: JsValue) = {
+    play.api.Logger.debug("ECHO  "+msg)
+    send(msg)
+  }
 }

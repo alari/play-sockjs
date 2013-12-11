@@ -7,15 +7,19 @@ import mirari.sockjs.frames.SockJsFrames
 import scala.concurrent.duration.DurationInt
 import play.api.mvc.{SimpleResult, AnyContent, Request, Controller}
 import scala.util.Random
-import scala.concurrent.{Promise, Future}
+import scala.concurrent.Future
 import mirari.sockjs.SockJsSystem
+import java.text.SimpleDateFormat
+import java.util.Date
 
 /**
  * @author alari
  * @since 12/10/13
  */
 abstract class TransportActor extends Actor {
+
   import scala.language.postfixOps
+
   implicit val executionContext = context.system.dispatcher
 
   val logger = Logging(context.system, this)
@@ -32,6 +36,10 @@ abstract class TransportActor extends Actor {
   def sendFrame(m: String): Boolean
 
   def receive: Receive = {
+    case SockJsSession.Register =>
+      play.api.Logger.debug("+ "+self)
+      session ! SockJsSession.Register
+
     case SockJsSession.OpenMessage =>
       if (sendFrame(SockJsFrames.OPEN_FRAME)) session ! SockJsSession.Register
       else self ! PoisonPill
@@ -55,14 +63,35 @@ abstract class TransportActor extends Actor {
     for (h <- heartBeatTask) h.cancel()
     heartBeatTask = Some(context.system.scheduler.scheduleOnce(heartBeatTimeout, self, PoisonPill))
   }
+
+  override def postStop() {
+    super.postStop()
+    for (h <- heartBeatTask) h.cancel()
+  }
 }
 
 class TransportController extends Controller {
+
   import akka.pattern.ask
   import concurrent.ExecutionContext.Implicits.global
+
   implicit val Timeout = akka.util.Timeout(1000)
 
   def randomNumber() = 2L << 30 + Random.nextInt
+
+  def handleCORSOptions(methods: String*)(implicit request: Request[AnyContent]) = {
+    val oneYearSeconds = 365 * 24 * 60 * 60
+    val oneYearms = oneYearSeconds * 1000
+    val expires = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz")
+      .format(new Date(System.currentTimeMillis() + oneYearms))
+    NoContent
+      .withHeaders(
+        EXPIRES -> expires,
+        CACHE_CONTROL -> "public,max-age=31536000",
+        ACCESS_CONTROL_ALLOW_METHODS -> methods.reduceLeft(_ + ", " + _),
+        ACCESS_CONTROL_MAX_AGE -> oneYearSeconds.toString)
+      .withHeaders(cors: _*)
+  }
 
   def cors(implicit req: Request[AnyContent]) = Seq(
     ACCESS_CONTROL_ALLOW_CREDENTIALS -> "true",
@@ -71,16 +100,28 @@ class TransportController extends Controller {
       (for (acrh ← req.headers.get(ACCESS_CONTROL_REQUEST_HEADERS))
       yield ACCESS_CONTROL_ALLOW_HEADERS -> acrh).toSeq)
 
-  def withExistingSession(service: String, session: String)(f: ActorRef => Future[SimpleResult]): Future[SimpleResult] =
+  def withExistingSessionFlat(service: String, session: String)(f: ActorRef => Future[SimpleResult]): Future[SimpleResult] =
     SockJsSystem.service(service) match {
       case Some(s) =>
         s ? SockJsService.GetSession(session) flatMap {
           case ss: ActorRef =>
             f(ss)
           case SockJsService.SessionNotFound =>
-            Future.successful(NotFound)
+            Future.successful(NotFound("session"))
         }
-      case None => Future successful NotFound
+      case None => Future successful NotFound("service")
+    }
+
+  def withExistingSession(service: String, session: String)(f: ActorRef => SimpleResult): Future[SimpleResult] =
+    SockJsSystem.service(service) match {
+      case Some(s) =>
+        s ? SockJsService.GetSession(session) map {
+          case ss: ActorRef =>
+            f(ss)
+          case SockJsService.SessionNotFound =>
+            NotFound("session")
+        }
+      case None => Future successful NotFound("service")
     }
 
   def withSession(service: String, session: String)(f: ActorRef => SimpleResult): Future[SimpleResult] =
@@ -90,9 +131,21 @@ class TransportController extends Controller {
           case ss: ActorRef =>
             f(ss)
           case SockJsService.SessionNotFound =>
-            NotFound
+            NotFound("session")
         }
-      case None => Future successful NotFound
+      case None => Future successful NotFound("service")
+    }
+
+  def withSessionFlat(service: String, session: String)(f: ActorRef => Future[SimpleResult]): Future[SimpleResult] =
+    SockJsSystem.service(service) match {
+      case Some(s) =>
+        s ? SockJsService.GetOrCreateSession(session) flatMap {
+          case ss: ActorRef =>
+            f(ss)
+          case SockJsService.SessionNotFound =>
+            Future.successful(NotFound("session"))
+        }
+      case None => Future successful NotFound("service")
     }
 }
 

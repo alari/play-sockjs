@@ -11,13 +11,14 @@ import mirari.sockjs.service.SockJsSession
 abstract class Handler extends Actor {
   def receive = {
     case m: JsValue =>
+      play.api.Logger.debug("--- HANDLE "+m)
       onMessage(m)
   }
 
   def onMessage(msg: JsValue)
 
   def send(msg: JsValue) {
-    context.parent ! SockJsSession.Write(msg)
+    context.parent ! SockJsSession.Outgoing(msg)
   }
 }
 

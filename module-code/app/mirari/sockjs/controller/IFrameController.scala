@@ -63,4 +63,9 @@ object IFrameController extends Controller{
   }
 
   def indexNoSlash(service: String) = index(service)
+
+  def nofound(what: String) = Action {
+    //play.api.Logger.debug(what)
+    NotFound(what)
+  }
 }

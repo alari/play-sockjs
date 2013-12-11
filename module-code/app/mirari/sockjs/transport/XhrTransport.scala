@@ -16,15 +16,16 @@ import mirari.sockjs.service.SockJsSession
 import mirari.sockjs.frames.{SockJsFrames, JsonCodec}
 
 class XhrPollingActor(promise: Promise[String]) extends TransportActor {
-  context.parent ! SockJsSession.Register
-
   def sendFrame(msg: String): Boolean = {
+    play.api.Logger.info(s"SENDING FRAME $msg")
     promise success msg + "\n"
     false
   }
 
   override def postStop() {
-    context.parent ! SockJsSession.Close(1002, "Connection interrupted") //FIXME: this should be closing the session but it works fine by mistake!!!!
+    //context.parent ! SockJsSession.Close(1002, "Connection interrupted") //FIXME: this should be closing the session but it works fine by mistake!!!!
+    play.api.Logger.debug("xhr polling poststop")
+    context.parent ! SockJsSession.Unregister
     super.postStop()
   }
 }
@@ -77,10 +78,14 @@ object XhrController extends TransportController {
 
   def xhr(service: String, server: String, session: String) = Action.async {
     implicit request =>
-      withExistingSession(service, session) {
+      play.api.Logger.debug("_____xhr_polling = "+session)
+      withSessionFlat(service, session) {
         ss =>
+          play.api.Logger.debug(ss.toString())
           val promise = Promise[String]()
-          ss ! SockJsSession.CreateAndRegister(Props(new XhrPollingActor(promise)), "xhr_polling")
+        val props = Props(classOf[XhrPollingActor], promise)
+        play.api.Logger.debug("we are there")
+          ss ! SockJsSession.CreateAndRegister(props, "xhr_polling")
           promise.future.map {
             m ⇒
               Ok(m.toString)
@@ -94,17 +99,12 @@ object XhrController extends TransportController {
 
   def xhrOpts(service: String, server: String, session: String) = Action {
     implicit request =>
-      NoContent
-        .withHeaders(
-          "Cache-Control" -> "public; max-age=31536000",
-          ACCESS_CONTROL_ALLOW_METHODS -> "OPTIONS, POST"
-        )
-        .withHeaders(cors: _*)
+      handleCORSOptions("OPTIONS", "POST")
   }
 
   def xhr_send(service: String, server: String, session: String) = Action.async(parse.anyContent) {
     implicit request =>
-      withSession(service, session) {
+      withExistingSession(service, session) {
         ss =>
           val message: String = request.body.asRaw.flatMap(r ⇒ r.asBytes(maxLength).map(b ⇒ new String(b)))
             .getOrElse(request.body.asText
@@ -117,7 +117,7 @@ object XhrController extends TransportController {
             try {
               val contentType = Transport.CONTENT_TYPE_PLAIN
               println(s"XHR Send -->>>>>:::: $message, decoded message: ${JsonCodec.decodeJson(message)}")
-              ss ! SockJsSession.Send(JsonCodec.decodeJson(message))
+              ss ! SockJsSession.Incoming(JsonCodec.decodeJson(message))
               NoContent
                 .withHeaders(
                   CONTENT_TYPE -> contentType,
@@ -133,13 +133,12 @@ object XhrController extends TransportController {
 
   def xhr_sendOpts(service: String, server: String, session: String) = Action {
     implicit request =>
-      NoContent
-        .withHeaders(cors: _*)
+      handleCORSOptions("OPTIONS", "POST")
   }
 
   def xhr_streaming(service: String, server: String, session: String) = Action.async {
     implicit request =>
-      withExistingSession(service, session) {
+      withExistingSessionFlat(service, session) {
         ss =>
           val (enum, channel) = Concurrent.broadcast[Array[Byte]]
           ss ? SockJsSession.CreateAndRegister(Props(new XhrStreamingActor(channel, maxBytesStreaming)), "xhr_streaming") map {
@@ -157,7 +156,6 @@ object XhrController extends TransportController {
 
   def xhr_streamingOpts(service: String, server: String, session: String) = Action {
     implicit request =>
-      NoContent
-        .withHeaders(cors: _*)
+      handleCORSOptions("OPTIONS", "POST")
   }
 }

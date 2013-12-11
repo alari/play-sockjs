@@ -19,7 +19,8 @@ class SockJsSession(handlerProps: Props) extends Actor {
 
   val heartBeatPeriod = 25000
 
-  val logger = Logging(context.system, this)
+  //val logger = Logging(context.system, this)
+  val logger = play.api.Logger
   val pendingWrites = scala.collection.mutable.Queue[JsValue]()
   var transportListener: Option[ActorRef] = None
   var heartBeatTask: Option[Cancellable] = None
@@ -30,16 +31,18 @@ class SockJsSession(handlerProps: Props) extends Actor {
 
   implicit val executionContext = context.system.dispatcher
 
+  var transportId = 0
 
   val (downEnumerator, downChannel) = Concurrent.broadcast[JsValue]
   val upIteratee = Iteratee.foreach[JsValue] {
     msg =>
-      downChannel push msg
+      //downChannel push msg
       println(s"handler1 ::::::::::: message: $msg")
+      handler ! msg
   }
 
   val (upEnumerator, upChannel) = Concurrent.broadcast[JsValue]
-  val downIteratee = Iteratee.foreach[JsValue](msg ⇒ self ! SockJsSession.Write(msg))
+  val downIteratee = Iteratee.foreach[JsValue](msg ⇒ self ! SockJsSession.Outgoing(msg))
 
   upEnumerator |>> upIteratee
   downEnumerator |>> downIteratee
@@ -57,7 +60,8 @@ class SockJsSession(handlerProps: Props) extends Actor {
 
     case c@SockJsSession.CreateAndRegister(props, name) =>
       logger.debug(s"state: CONNECTING, sender: $sender, message: $c")
-      sender ! context.actorOf(props, name)
+      createAndRegister(props, name)
+
 
     case c: SockJsSession.Close ⇒
       logger.debug(s"state: CONNECTING, sender: $sender, message: $c")
@@ -69,25 +73,33 @@ class SockJsSession(handlerProps: Props) extends Actor {
   }
 
   def open: Receive = {
+    case c@SockJsSession.CreateAndRegister(props, name) =>
+      logger.debug(s"state: OPEN, sender: $sender, message: $c")
+      createAndRegister(props, name)
+
+    // Registering a transport
     case SockJsSession.Register ⇒
       logger.debug(s"state: OPEN, sender: $sender, message: ${SockJsSession.Register}")
       register(sender)
       if (!pendingWrites.isEmpty) (writePendingMessages andThen resetListener)(sender)
 
-
-    case s@SockJsSession.Send(msgs) ⇒
+      // A message received
+    case s@SockJsSession.Incoming(msgs) ⇒
       logger.debug(s"state: OPEN, sender: $sender, message: $s")
       handleMessages(msgs)
 
-    case w@SockJsSession.Write(msg) ⇒
-      logger.debug(s"state: OPEN, sender: $sender, message: $w")
+      // Writing a message to output
+    case w@SockJsSession.Outgoing(msg) ⇒
+      logger.debug(s"state: OPEN, sender: $sender, message: $w, transport: $transportListener")
       enqueue(msg)
       transportListener map (writePendingMessages andThen resetListener)
 
+      // Sending a heartbeat
     case SockJsSession.HeartBeat ⇒
       logger.debug(s"state: OPEN, sender: $sender, message: ${SockJsSession.HeartBeat}")
       transportListener map (sendHeartBeatMessage andThen resetListener)
 
+      // Closing the session
     case c: SockJsSession.Close ⇒
       logger.debug(s"state: OPEN, sender: $sender, message: $c")
       this.closeMessage = c
@@ -95,13 +107,24 @@ class SockJsSession(handlerProps: Props) extends Actor {
   }
 
   def closed: Receive = {
+    case c@SockJsSession.CreateAndRegister(props, name) =>
+      logger.debug(s"state: CLOSED, sender: $sender, message: $c")
+      createAndRegister(props, name)
+
     case SockJsSession.Register if !openWriten ⇒
-      logger.debug(s"state: OPEN, sender: $sender, message: ${SockJsSession.Register}, openWriten: $openWriten")
+      logger.debug(s"state: CLOSED, sender: $sender, message: ${SockJsSession.Register}, openWriten: $openWriten")
       (register andThen sendOpenMessage andThen resetListener)(sender)
 
     case SockJsSession.Register ⇒
-      logger.debug(s"state: OPEN, sender: $sender, message: ${SockJsSession.Register}, openWriten: $openWriten")
+      logger.debug(s"state: CLOSED, sender: $sender, message: ${SockJsSession.Register}, openWriten: $openWriten")
       (register andThen sendCloseMessage andThen resetListener)(sender)
+  }
+
+  def createAndRegister(props: Props, name: String) = {
+    val t = context.actorOf(props, name + transportId)
+    t ! SockJsSession.Register
+    sender ! t
+    transportId += 1
   }
 
   val register = (tl: ActorRef) ⇒ {
@@ -121,17 +144,21 @@ class SockJsSession(handlerProps: Props) extends Actor {
   }: ActorRef
 
   val resetListener = (tl: ActorRef) ⇒ {
-    //TODO: should you notify the tl?
+    play.api.Logger.debug("reset LISTENER")
+    //tl ! PoisonPill
     transportListener = None
     setTimer()
   }: Unit
 
   val becomeOpen = (_: Unit) ⇒ {
+    play.api.Logger.debug("-> become OPEN")
     context become (open orElse timeout)
     startHeartBeat()
   }: Unit
 
   val becomeClosed = (_: Unit) ⇒ {
+    play.api.Logger.debug("-> become CLOSED")
+
     context become (closed orElse timeout)
     upChannel.eofAndEnd()
   }: Unit
@@ -144,7 +171,7 @@ class SockJsSession(handlerProps: Props) extends Actor {
   }: ActorRef
 
   val sendCloseMessage = (tl: ActorRef) ⇒ {
-    tl ! closeMessage;
+    tl ! closeMessage
     tl
   }: ActorRef
 
@@ -180,7 +207,7 @@ class SockJsSession(handlerProps: Props) extends Actor {
   }
 
   def doClose() {
-    logger.debug("Session is going to shutdown")
+    //logger.debug("Session is going to shutdown")
     self ! PoisonPill
     handler ! PoisonPill
     for (tl ← transportListener) tl ! PoisonPill
@@ -192,7 +219,7 @@ class SockJsSession(handlerProps: Props) extends Actor {
 object SockJsSession {
 
   // JSClient send
-  case class Send(msg: JsValue)
+  case class Incoming(msg: JsValue)
 
   // register the transport actor and holds for the next message to write to the JSClient
   case object Register
@@ -210,7 +237,7 @@ object SockJsSession {
 
   case object HeartBeat
 
-  case class Write(msg: JsValue)
+  case class Outgoing(msg: JsValue)
 
   object Timeout
 
