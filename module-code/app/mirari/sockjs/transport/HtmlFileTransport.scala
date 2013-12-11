@@ -30,7 +30,7 @@ class HtmlFileTransport(callback: String, channel: Concurrent.Channel[String], m
     function p(d) {c.message(d);};
     window.onload = function() {c.stop();};
   </script>
-    """
+    """.replaceAll("""(?m)\s+$""", "")
     super.doRegister()
   }
 

@@ -2,7 +2,6 @@ package mirari.sockjs.transport
 
 import play.api.mvc.Action
 import play.api.libs.iteratee.Concurrent
-import com.cloud9ers.play2.sockjs.Session
 import akka.actor.{ActorRef, Props}
 import mirari.sockjs.service.SockJsSession
 import play.api.libs.EventSource
@@ -15,11 +14,6 @@ import concurrent.ExecutionContext.Implicits.global
 class EventSourceTransport(channel: Concurrent.Channel[String], maxBytesStreaming: Int) extends TransportActor {
   var bytesSent = 0
 
-
-  override def doRegister() {
-    import scala.language.postfixOps
-    session ! Session.Register
-  }
 
   def sendFrame(m: String): Boolean = {
     //val msg = s"data: $m\r\n\r\n"
