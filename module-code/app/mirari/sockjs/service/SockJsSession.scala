@@ -4,10 +4,10 @@ import akka.actor._
 import akka.event.Logging
 import play.api.libs.json.JsValue
 import play.api.libs.iteratee.{Concurrent, Iteratee}
-import com.cloud9ers.play2.sockjs.JsonCodec
 import play.api.libs.json.JsArray
 import scala.Some
 import scala.concurrent.duration.DurationInt
+import mirari.sockjs.frames.JsonCodec
 
 /**
  * @author alari
