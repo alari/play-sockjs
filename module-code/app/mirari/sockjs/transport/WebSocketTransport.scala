@@ -14,23 +14,24 @@ import akka.actor.{PoisonPill, ActorRef, Props}
  * @author alari
  * @since 12/11/13
  */
-class WebSocketTransport(outChannel: Concurrent.Channel[String]) extends TransportActor{
+class WebSocketTransport(outChannel: Concurrent.Channel[String]) extends TransportActor {
   def sendFrame(m: String) = {
-    play.api.Logger.debug("\n:-:-:-:-\n"+m+"\n\n")
+    play.api.Logger.debug("\n:-:-:-:-\n" + m + "\n\n")
     outChannel push m
     true
   }
 }
 
-object WebSocketController extends TransportController{
+object WebSocketController extends TransportController {
 
   import akka.pattern.ask
 
   def rootWebsocket(service: String) = WebSocket.async[String] {
     implicit request =>
       val (out, outChannel) = Concurrent.broadcast[String]
-      val in = Iteratee.foreach[String]{s =>
-        outChannel push s
+      val in = Iteratee.foreach[String] {
+        s =>
+          outChannel push s
       }
       Future.successful((in, out))
   }
@@ -47,10 +48,14 @@ object WebSocketController extends TransportController{
 
               ss ? SockJsSession.CreateAndRegister(Props(new WebSocketTransport(outChannel)), "websocket", request) map {
                 case transport: ActorRef =>
-                  val in = Iteratee.foreach[String]{s =>
-                    ss ! SockJsSession.Incoming(JsonCodec.decodeJson(s))
+                  val in = Iteratee.foreach[String] {
+                    s =>
+                      play.api.Logger.debug("INCOMING " + s)
+                      play.api.Logger.debug("TO SESSION " + ss)
+                      ss ! SockJsSession.Incoming(JsonCodec.decodeJson(s))
                   } map {
                     _ =>
+                      play.api.Logger.debug("KILLING TRANSPORT")
                     // Kill this actor when connection is broken
                       transport ! PoisonPill
                   }

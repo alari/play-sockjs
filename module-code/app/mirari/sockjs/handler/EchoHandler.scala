@@ -8,7 +8,6 @@ import play.api.libs.json.JsValue
  */
 class EchoHandler extends SockJsHandler {
   def onMessage(msg: JsValue) = {
-    play.api.Logger.debug("ECHO  "+msg)
     send(msg)
   }
 }

@@ -13,3 +13,6 @@ dist
 /.project
 /RUNNING_PID
 /.settings
+
+# We need to remove routes file to treat the project as a plugin
+/conf/routes

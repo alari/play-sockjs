@@ -11,12 +11,20 @@ object TestController extends Controller {
     implicit request =>
       Ok(<html>
         <head>
-          <script>
-            ws = WebSocket("ws://localhost:9000/echo/000/test/websocket");
+          <script src="https://d1fxtkz8shb9d2.cloudfront.net/sockjs-0.3.min.js"></script>
+          <script><![CDATA[
+            window.ws = new SockJS('http://localhost:9000/echo');
+            window.ws.onmessage = function(m){
+              console.log(m);
+              document.getElementById('out').value += m.data + '\n';
+            }
+            ]]>
           </script>
         </head>
         <body>
-          <h1>Hi there</h1>
+          <h1>Hi there</h1><br/>
+          <a onclick="javascript:ws.send(JSON.stringify({ping:true}))">Send Message</a>
+          <textarea id="out" cols="50" rows="20"></textarea>
         </body>
       </html>).withHeaders(CONTENT_TYPE -> "text/html; encoding=UTF-8")
   }

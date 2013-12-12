@@ -131,6 +131,7 @@ class SockJsSession(handlerProps: Props) extends Actor {
 
   val register = (tl: ActorRef) ⇒ {
     if (transportListener.isEmpty || transportListener.get == tl) {
+      logger.debug("Registering transport: "+tl)
       transportListener = Some(tl)
     } else {
       tl ! SockJsSession.Close(2010, "Another connection still open")

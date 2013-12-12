@@ -4,7 +4,6 @@ import play.api.mvc._
 import java.security.MessageDigest
 import org.joda.time.DateTime
 import play.api.Play.current
-import org.apache.commons.lang3.StringUtils
 
 /**
  * @author alari
