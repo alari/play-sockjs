@@ -15,7 +15,8 @@ object SockJsSystem {
   private[this] var services = Map[String, ActorRef]()
 
   def initService(name: String, handler: Props, websocket: Boolean = true, cookieNeeded: Boolean = true) {
-    services += name -> system.actorOf(Props(new SockJsService(handler, websocket, cookieNeeded)), name)
+    if(!services.contains(name))
+      services += name -> system.actorOf(Props(new SockJsService(handler, websocket, cookieNeeded)), name)
   }
 
   def service(name: String) = services.get(name)
