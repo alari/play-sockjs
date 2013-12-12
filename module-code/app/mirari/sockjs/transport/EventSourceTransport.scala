@@ -35,7 +35,7 @@ object EventSourceController extends TransportController {
 
   def eventsource(service: String, server: String, session: String) = Action.async {
     implicit request =>
-      withExistingSessionFlat(service, session) {
+      withSessionFlat(service, session) {
         ss =>
           val (enum, channel) = Concurrent.broadcast[String]
 

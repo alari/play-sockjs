@@ -57,7 +57,7 @@ object HtmlFileController extends TransportController {
   def htmlfile(service: String, server: String, session: String) = Action.async {
     implicit request =>
 
-      withExistingSessionFlat(service, session) {
+      withSessionFlat(service, session) {
         ss =>
           request.getQueryString("c").map {
             callback =>

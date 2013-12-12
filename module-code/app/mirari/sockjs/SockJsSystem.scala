@@ -19,7 +19,7 @@ object SockJsSystem {
     if(!services.contains(name))
       services += name -> system.actorOf(Props(new SockJsService(handler, websocket, cookieNeeded)), name)
     else if(play.api.Play.current.mode != Mode.Test)
-      play.api.Logger.error("Trying to init service `" + name + "` but it has already been initiated!")
+      play.api.Logger.error("Trying to init service `" + name + "`, but it has already been initiated!")
   }
 
   def service(name: String) = services.get(name)

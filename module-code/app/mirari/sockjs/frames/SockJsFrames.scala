@@ -1,7 +1,7 @@
 package mirari.sockjs.frames
 
-import play.api.mvc.RawBuffer
 import scala.collection.mutable.ArrayBuffer
+import org.apache.commons.lang3.StringUtils
 
 class MessageFrame(sockJsMessages: Array[Byte]) {
   
@@ -20,7 +20,7 @@ object SockJsFrames {
   val OPEN_FRAME_NL      = "o\n"
   val HEARTBEAT_FRAME    = "h"
   val HEARTBEAT_FRAME_NL = "h\n"
-  val XHR_STREAM_H_BLOCK = ((for (i <- 0 to 2047) yield "h").toArray :+ "\n").reduceLeft(_ + _).toArray.map(_.toByte)
+  val XHR_STREAM_H_BLOCK = StringUtils.repeat("h", 2048).toCharArray.map(_.toByte) :+ '\n'.toByte
   def closingFrame(code: Int, reason: String) = s"""c[$code,"$reason"]"""
 
   def messageFrame(sockJsMessages: Array[Byte], appendNewline: Boolean) = new MessageFrame(sockJsMessages).get(appendNewline)
