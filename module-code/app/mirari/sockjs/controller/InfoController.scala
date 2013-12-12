@@ -41,7 +41,7 @@ object InfoController extends Controller {
             )
           }
         case None =>
-          Future successful NotFound
+          Future successful NotFound("Service " + service + " not found")
       }
 
   }
