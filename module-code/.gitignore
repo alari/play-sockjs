@@ -16,3 +16,4 @@ dist
 
 # We need to remove routes file to treat the project as a plugin
 /conf/routes
+/app/Global.scala
