@@ -11,5 +11,5 @@ object Frames {
 
   val Open = "o"
 
-  def closed(code: Int, reason: String) = s"c[$code,\"$reason\"]"
+  def closed(code: Int, reason: String) = "c[" + code + ",\"" + reason + "\"]"
 }

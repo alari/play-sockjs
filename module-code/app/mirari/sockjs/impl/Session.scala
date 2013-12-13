@@ -15,6 +15,7 @@ import scala.Some
 class Session(handlerProps: Props) extends Actor {
 
   import Session._
+  import context.dispatcher
 
   def receive = connectingState orElse queueingState orElse timeoutingState
 

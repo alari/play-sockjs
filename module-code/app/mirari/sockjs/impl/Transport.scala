@@ -4,6 +4,8 @@ import play.api.libs.iteratee.{Iteratee, Enumerator, Concurrent}
 import scala.concurrent.{Future, Promise}
 import akka.actor._
 import play.api.mvc.RequestHeader
+import concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.FiniteDuration
 
 /**
  * @author alari
@@ -15,21 +17,39 @@ abstract class Transport extends Actor {
 
   def receive = {
     case RegisterTransport =>
-      // possibly we may do something before triggering register
-      context.parent ! RegisterTransport
+      register()
 
     case OutgoingRaw(frame) =>
       if (sendFrame(frame)) context.parent ! RegisterTransport
+      else self ! PoisonPill
+  }
+
+  def register() {
+    context.parent ! RegisterTransport
   }
 
   // is it capable to send another frame after this one or not
   def sendFrame(frame: String): Boolean
 }
 
-class ChannelTransport(channel: Concurrent.Channel[String]) extends Transport {
+class ChannelTransport(channel: Concurrent.Channel[String], initialPayload: String = null, frameFormatter: String => String = a => a, maxStreamingBytes: Int = 127000) extends Transport {
+  var bytesSent = 0
+
+  val InitialPayloadDelay = FiniteDuration(10, "milliseconds")
+
+  override def register() {
+    if(initialPayload != null) {
+      play.api.Logger.error("FIXME: payload is sent only when this logging line is there "+initialPayload)
+      channel.push(initialPayload)
+        super.register()
+    } else super.register()
+  }
+
   def sendFrame(frame: String) = {
-    channel.push(frame)
-    true
+    val msg = frameFormatter(frame)
+    channel.push(msg)
+    bytesSent += msg.length
+    bytesSent < maxStreamingBytes
   }
 }
 
@@ -41,6 +61,8 @@ class PromiseTransport(promise: Promise[String]) extends Transport {
 }
 
 object Transport {
+  implicit val Timeout = akka.util.Timeout(100)
+
   def fullDuplex(session: ActorRef)(implicit request: RequestHeader): Future[FullDuplex] = {
     val (out, channel) = outChannel()
     withTransport(session, new ChannelTransport(channel)) {
@@ -56,11 +78,11 @@ object Transport {
     }
   }
 
-  def halfDuplex(session: ActorRef)(implicit request: RequestHeader): Future[HalfDuplex] = {
+  def halfDuplex(session: ActorRef, initialPayload: String = null, frameFormatter: String => String = a => a, maxStreamingBytes: Int = 127000)(implicit request: RequestHeader): Future[HalfDuplex] = {
     val (out, channel) = outChannel()
-    withTransport(session, new ChannelTransport(channel)) {
+    withTransport(session, new ChannelTransport(channel, initialPayload, frameFormatter, maxStreamingBytes)) {
       _ =>
-        HalfDuplex(out)
+        HalfDuplex(out &> Concurrent.buffer(maxStreamingBytes / 10))
     }
   }
 
@@ -94,3 +116,4 @@ object Transport {
 
   case class SingleFramePlex(out: Future[String])
 }
+
