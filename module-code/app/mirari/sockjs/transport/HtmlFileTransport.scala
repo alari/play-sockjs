@@ -16,8 +16,7 @@ import concurrent.ExecutionContext.Implicits.global
 class HtmlFileTransport(callback: String, channel: Concurrent.Channel[String], maxBytesStreaming: Int) extends TransportActor {
   var bytesSent = 0
 
-  override def doRegister() {
-    channel push s"""
+  val Html = s"""
     <!doctype html>
 <html><head>
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
@@ -30,7 +29,10 @@ class HtmlFileTransport(callback: String, channel: Concurrent.Channel[String], m
     function p(d) {c.message(d);};
     window.onload = function() {c.stop();};
   </script>
-    """.replaceAll("""(?m)\s+$""", "")
+    """.replaceAll( """(?m)\s+$""", "")
+
+  override def doRegister() {
+    channel push Html
     super.doRegister()
   }
 
