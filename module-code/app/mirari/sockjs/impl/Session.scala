@@ -46,6 +46,9 @@ class Session(handlerProps: Props) extends Actor {
 
     case RegisterTransport =>
       registerTransport(sender)
+
+    case UnregisterTransport =>
+      if(transport.exists(_ == sender)) resetTransport()
   }
 
   def listeningState: Receive = {
@@ -154,6 +157,8 @@ object Session {
   case class CreateTransport(props: Props, request: RequestHeader)
 
   case object RegisterTransport
+
+  case object UnregisterTransport
 
   case object TriggerTimeout
 

@@ -143,13 +143,9 @@ class TransportSpec extends PlaySpecification {
 
       val payload: String = "akka"
 
-      play.api.Logger.error("BUILDING HALF DUPLEX")
-
       Transport.halfDuplex(session, initialPayload = payload, maxStreamingBytes = 2, frameFormatter = a => s"($a)") should beLike[HalfDuplex] {
         case t =>
           var msg = Promise[String]()
-
-          play.api.Logger.error("WAITING FOR AKKA")
 
           val iteratee = Iteratee.foreach[String] {
             m =>

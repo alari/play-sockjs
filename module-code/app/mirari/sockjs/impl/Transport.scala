@@ -6,6 +6,7 @@ import akka.actor._
 import play.api.mvc.RequestHeader
 import concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
+import mirari.sockjs.impl.Transport.TransportTerminated
 
 /**
  * @author alari
@@ -18,6 +19,10 @@ abstract class Transport extends Actor {
   def receive = {
     case RegisterTransport =>
       register()
+
+    case TransportTerminated =>
+      context.parent ! UnregisterTransport
+      self ! PoisonPill
 
     case OutgoingRaw(frame) =>
       if (sendFrame(frame)) context.parent ! RegisterTransport
@@ -37,10 +42,15 @@ class ChannelTransport(channel: Future[Concurrent.Channel[String]], initialPaylo
 
   val InitialPayloadDelay = FiniteDuration(10, "milliseconds")
 
-  override def preStart() {
+  override def register() {
     if (initialPayload != null) {
-      channel.map(_.push(initialPayload))
-    }
+      channel.map {
+        c =>
+          c.push(initialPayload)
+          // We need to be sure that payload have been sent before any frame
+          super.register()
+      }
+    } else super.register()
   }
 
   def sendFrame(frame: String) = {
@@ -66,13 +76,17 @@ object Transport {
 
     withTransport(session, new ChannelTransport(p.future)) {
       transport =>
-        val out = Concurrent.unicast[String]({c => p.success(c)}, {transport ! PoisonPill})
+        val out = Concurrent.unicast[String]({
+          c => p.success(c)
+        }, {
+          transport ! TransportTerminated
+        })
         val in = Iteratee.foreach[String] {
           s =>
             incomingFrame(s, session)
         } map {
           _ =>
-            transport ! PoisonPill
+            transport ! TransportTerminated
         }
         FullDuplex(out, in)
     }
@@ -83,7 +97,11 @@ object Transport {
 
     withTransport(session, new ChannelTransport(p.future, initialPayload, frameFormatter, maxStreamingBytes)) {
       transport =>
-        val out = Concurrent.unicast[String]({c => p.success(c)}, {transport ! PoisonPill})
+        val out = Concurrent.unicast[String]({
+          c => p.success(c)
+        }, {
+          transport ! TransportTerminated
+        })
 
         HalfDuplex(out)
     }
@@ -118,5 +136,7 @@ object Transport {
   case class HalfDuplex(out: Enumerator[String])
 
   case class SingleFramePlex(out: Future[String])
+
+  case object TransportTerminated
 }
 
