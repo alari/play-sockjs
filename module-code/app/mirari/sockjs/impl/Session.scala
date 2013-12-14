@@ -12,7 +12,7 @@ import scala.Some
  * @author alari
  * @since 12/13/13
  */
-class Session(handlerProps: Props) extends Actor {
+class Session(handlerProps: Props, timeoutMs: Int = 10000, heartbeatPeriodMs: Int = 25000) extends Actor {
 
   import Session._
   import context.dispatcher
@@ -21,11 +21,11 @@ class Session(handlerProps: Props) extends Actor {
 
   val handler = context.actorOf(handlerProps, "handler")
 
-  val SessionTimeout = FiniteDuration(10, "seconds")
-  val HeartbeatPeriod = FiniteDuration(35, "seconds")
+  val SessionTimeout = FiniteDuration(timeoutMs, "milliseconds")
+  val HeartbeatPeriod = FiniteDuration(heartbeatPeriodMs, "milliseconds")
 
   var transportId = 0
-  var queue = Queue[JsValue]()
+  var pendingMessagesQueue = Queue[JsValue]()
   var transport: Option[ActorRef] = None
   var timeout: Option[Cancellable] = Some(context.system.scheduler.scheduleOnce(SessionTimeout, self, TriggerTimeout))
   var heartbeat: Option[Cancellable] = None
@@ -103,7 +103,7 @@ class Session(handlerProps: Props) extends Actor {
         t ! OutgoingRaw(Frames.array(message))
         resetTransport()
       case None =>
-        queue = queue.enqueue(message)
+        pendingMessagesQueue = pendingMessagesQueue.enqueue(message)
     }
   }
 
@@ -120,7 +120,7 @@ class Session(handlerProps: Props) extends Actor {
       case Some(tr) if tr == t =>
       // do nothing
       case Some(tr) =>
-        tr ! OutgoingRaw(Frames.closed(2010, "Another connection still open"))
+        tr ! OutgoingRaw(Frames.Closed_AnotherConnectionStillOpen)
       case None =>
         transport = Some(t)
         heartbeat = Some(context.system.scheduler.schedule(HeartbeatPeriod, HeartbeatPeriod, self, Heartbeat))
@@ -128,11 +128,11 @@ class Session(handlerProps: Props) extends Actor {
     }
   }
 
-  def processQueue(): Unit = if (!queue.isEmpty) {
+  def processQueue(): Unit = if (!pendingMessagesQueue.isEmpty) {
     transport.map {
       t =>
-        t ! OutgoingRaw(Frames.array(queue.toSeq))
-        queue = Queue()
+        t ! OutgoingRaw(Frames.array(pendingMessagesQueue.toSeq))
+        pendingMessagesQueue = Queue()
         resetTransport()
     }
   }

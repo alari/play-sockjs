@@ -6,7 +6,7 @@ import akka.actor._
 import play.api.mvc.{Controller, RequestHeader}
 import concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
-import mirari.sockjs.impl.Transport.TransportTerminated
+import mirari.sockjs.impl.Transport.{StreamingFinished, ConnectionInterrupted}
 
 /**
  * @author alari
@@ -20,7 +20,11 @@ abstract class Transport extends Actor {
     case RegisterTransport =>
       register()
 
-    case TransportTerminated =>
+    case ConnectionInterrupted =>
+      context.parent ! UnregisterTransport
+      self ! PoisonPill
+
+    case StreamingFinished =>
       context.parent ! UnregisterTransport
       self ! PoisonPill
 
@@ -79,14 +83,14 @@ object Transport {
         val out = Concurrent.unicast[String]({
           c => p.success(c)
         }, {
-          transport ! TransportTerminated
+          transport ! StreamingFinished
         })
         val in = Iteratee.foreach[String] {
           s =>
             incomingFrame(s, session)
         } map {
           _ =>
-            transport ! TransportTerminated
+            transport ! ConnectionInterrupted
         }
         FullDuplex(out, in)
     }
@@ -100,7 +104,7 @@ object Transport {
         val out = Concurrent.unicast[String]({
           c => p.success(c)
         }, {
-          transport ! TransportTerminated
+          transport ! StreamingFinished
         })
 
         HalfDuplex(out)
@@ -137,7 +141,9 @@ object Transport {
 
   case class SingleFramePlex(out: Future[String])
 
-  case object TransportTerminated
+  case object ConnectionInterrupted
+
+  case object StreamingFinished
 }
 
 trait SockJsTransports {
@@ -166,5 +172,10 @@ trait SockJsTransports {
 
   def jsonpTransport(session: ActorRef, callback: String)(implicit request: RequestHeader) = singleFramePlex(session).map {
     _.out.map(Frames.Format.jsonp(callback))
+  }
+
+  def websocketTransport(session: ActorRef)(implicit request: RequestHeader) = fullDuplex(session).map {
+    t =>
+      (t.in, t.out)
   }
 }

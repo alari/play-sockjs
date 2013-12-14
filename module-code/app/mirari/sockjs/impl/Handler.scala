@@ -9,14 +9,13 @@ import play.api.mvc.RequestHeader
  * @since 12/13/13
  */
 class Handler extends Actor {
+
   import Handler._
 
   def receive = {
     case request: RequestHeader =>
 
     case Incoming(msg) =>
-      play.api.Logger.debug("Echoing message back: "+msg)
-      send(msg)
   }
 
   def send(msg: JsValue) {
@@ -25,5 +24,14 @@ class Handler extends Actor {
 }
 
 object Handler {
+
   case class Incoming(msg: JsValue)
+
+  class Echo extends Handler {
+    override def receive = {
+      case Incoming(msg) =>
+        send(msg)
+    }
+  }
+
 }
