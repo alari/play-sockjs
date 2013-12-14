@@ -26,7 +26,7 @@ abstract class Transport extends Actor {
 
     case StreamingFinished =>
       context.parent ! UnregisterTransport
-      self ! PoisonPill
+
 
     case OutgoingRaw(frame) =>
       if (sendFrame(frame)) context.parent ! RegisterTransport

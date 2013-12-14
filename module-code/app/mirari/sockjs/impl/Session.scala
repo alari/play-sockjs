@@ -7,6 +7,7 @@ import play.api.libs.json._
 import play.api.mvc.RequestHeader
 import play.api.libs.json.JsArray
 import scala.Some
+import scala.concurrent.Promise
 
 /**
  * @author alari
@@ -17,7 +18,7 @@ class Session(handlerProps: Props, timeoutMs: Int = 10000, heartbeatPeriodMs: In
   import Session._
   import context.dispatcher
 
-  def receive = connectingState orElse queueingState orElse timeoutingState
+  def receive = connectingBehaviour
 
   val handler = context.actorOf(handlerProps, "handler")
 
@@ -27,38 +28,126 @@ class Session(handlerProps: Props, timeoutMs: Int = 10000, heartbeatPeriodMs: In
   var transportId = 0
   var pendingMessagesQueue = Queue[JsValue]()
   var transport: Option[ActorRef] = None
-  var timeout: Option[Cancellable] = Some(context.system.scheduler.scheduleOnce(SessionTimeout, self, TriggerTimeout))
+  var timeout: Option[Cancellable] = None
   var heartbeat: Option[Cancellable] = None
   var openWritten = false
 
+  launchTimeout()
 
 
-  def connectingState: Receive = {
+
+  def becomeOpen() = {
+    play.api.Logger.error("-> OPEN")
+    timeout.map(_.cancel())
+    launchHeartbeat()
+    context.become(openBehaviour, discardOld = true)
+  }
+
+  def becomeClosed() = {
+    play.api.Logger.error("-> CLOSED")
+    launchTimeout()
+    heartbeat.map(_.cancel())
+    context.become(closedBehaviour, discardOld = true)
+  }
+
+  def becomeConnecting() = {
+    play.api.Logger.error("-> CONNECTING")
+    launchTimeout()
+    heartbeat.map(_.cancel())
+    context.become(connectingBehaviour, discardOld = true)
+  }
+
+  val sendToTransport: Receive = {
+    case Heartbeat =>
+      sendFrame(Frames.Heartbeat)
+
+    case OutgoingMessage(msg) =>
+      sendFrame(Frames.array(msg))
+
+    case OutgoingRaw(msg) =>
+      sendFrame(msg)
+  }
+
+  def sendFrame(frame: String) {
+    transport.map(_ ! OutgoingRaw(frame))
+    transport = None
+    becomeConnecting()
+  }
+
+  val unregisterTransport: Receive = {
+    case UnregisterTransport =>
+      transport.map{t =>
+        t ! OutgoingRaw(Frames.Closed_ConnectionInterrupted)
+        t ! PoisonPill
+      }
+      transport = None
+      becomeConnecting()
+  }
+
+  val closeSession: Receive = {
+    case Close =>
+      transport.map{t =>
+        t ! OutgoingRaw(Frames.Closed)
+        t ! PoisonPill
+      }
+      transport = None
+      becomeClosed()
+  }
+
+  val waitForTransport: Receive = {
+    // Create a new transport
     case CreateTransport(props, request) =>
+      play.api.Logger.error("CREATING TRANSPORT...")
       transportId += 1
       val a = context.actorOf(props, s"transport.$transportId")
       a ! RegisterTransport
       sender ! a
       handler ! request
 
-    case RegisterTransport if !openWritten =>
-      sender ! OutgoingRaw(Frames.Open)
-
+    // Register a new transport
     case RegisterTransport =>
-      registerTransport(sender)
-
-    case UnregisterTransport =>
-      if(transport.exists(_ == sender)) resetTransport()
+      play.api.Logger.error("REGISTERING TRANSPORT...")
+      if (!openWritten) {
+        // First frame for this session
+        play.api.Logger.error("WRITING OPEN")
+        openWritten = true
+        sender ! OutgoingRaw(Frames.Open)
+        becomeConnecting()
+      } else {
+        if (pendingMessagesQueue.isEmpty) {
+          play.api.Logger.error("BECOME OPEN")
+          // Register a transport, wait for messages
+          transport = Some(sender)
+          launchHeartbeat()
+          becomeOpen()
+        } else {
+          play.api.Logger.error("SENDING PENDINGS")
+          // Send pendings -- do not register
+          sender ! OutgoingRaw(Frames.array(pendingMessagesQueue.toSeq))
+          pendingMessagesQueue = Queue()
+          becomeConnecting()
+        }
+      }
   }
 
-  def listeningState: Receive = {
+  val enqueueMessages: Receive = {
+    case OutgoingMessage(msg) =>
+      pendingMessagesQueue = pendingMessagesQueue.enqueue(msg)
+  }
+
+  val waitForTimeout: Receive = {
+    case TriggerTimeout =>
+      self ! PoisonPill
+  }
+
+  val handleIncomings: Receive = {
     case Incoming(msg) =>
       try {
         JsonCodec.decodeJson(msg) match {
           case JsArray(msgs) =>
             msgs foreach (m => handler ! Handler.Incoming(m))
           case m: JsValue =>
-            handler ! m
+            handler ! Handler.Incoming(m)
         }
       } catch {
         case e: Throwable =>
@@ -67,78 +156,45 @@ class Session(handlerProps: Props, timeoutMs: Int = 10000, heartbeatPeriodMs: In
       }
   }
 
-  def queueingState: Receive = {
-    case OutgoingMessage(msg) =>
-      enqueueMessage(msg)
+  def rejectConnections(reason: String): Receive = {
+    case CreateTransport(props, request) =>
+      transportId += 1
+      val a = context.actorOf(props, s"transport.$transportId")
+      a ! OutgoingRaw(reason)
+      sender ! a
 
-    case OutgoingRaw(msg) =>
-      sendFrame(msg)
-
-    case Heartbeat =>
-      sendFrame(Frames.Heartbeat)
-  }
-
-  def timeoutingState: Receive = {
-    case TriggerTimeout =>
-      self ! PoisonPill
+    case RegisterTransport =>
+      sender ! OutgoingRaw(reason)
   }
 
 
 
+  val openBehaviour = unregisterTransport orElse
+    rejectConnections(Frames.Closed_AnotherConnectionStillOpen) orElse
+    handleIncomings orElse
+    sendToTransport orElse
+    closeSession
+
+  val closedBehaviour = rejectConnections(Frames.Closed_GoAway) orElse
+    waitForTimeout
+
+  val connectingBehaviour = waitForTransport orElse
+    enqueueMessages orElse
+    handleIncomings orElse
+    waitForTimeout orElse
+    closeSession
 
 
 
-
-  def sendFrame(frame: String) {
-    transport.map {
-      t =>
-        t ! OutgoingRaw(frame)
-        resetTransport()
-    }
-  }
-
-  def enqueueMessage(message: JsValue) {
-    transport match {
-      case Some(t) =>
-        t ! OutgoingRaw(Frames.array(message))
-        resetTransport()
-      case None =>
-        pendingMessagesQueue = pendingMessagesQueue.enqueue(message)
-    }
-  }
-
-  def resetTransport() {
-    transport = None
-    timeout.map(_.cancel())
+  def launchHeartbeat() = {
     heartbeat.map(_.cancel())
+    heartbeat = Some(context.system.scheduler.schedule(HeartbeatPeriod, HeartbeatPeriod, self, Heartbeat))
+  }
+
+  def launchTimeout() = {
+    timeout.map(_.cancel())
     timeout = Some(context.system.scheduler.scheduleOnce(SessionTimeout, self, TriggerTimeout))
   }
-
-  def registerTransport(t: ActorRef) {
-    timeout.map(_.cancel())
-    transport match {
-      case Some(tr) if tr == t =>
-      // do nothing
-      case Some(tr) =>
-        tr ! OutgoingRaw(Frames.Closed_AnotherConnectionStillOpen)
-      case None =>
-        transport = Some(t)
-        heartbeat = Some(context.system.scheduler.schedule(HeartbeatPeriod, HeartbeatPeriod, self, Heartbeat))
-        processQueue()
-    }
-  }
-
-  def processQueue(): Unit = if (!pendingMessagesQueue.isEmpty) {
-    transport.map {
-      t =>
-        t ! OutgoingRaw(Frames.array(pendingMessagesQueue.toSeq))
-        pendingMessagesQueue = Queue()
-        resetTransport()
-    }
-  }
-
-
-
 
   override def postStop() {
     heartbeat.map(_.cancel())

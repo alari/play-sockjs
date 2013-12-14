@@ -23,8 +23,8 @@ class TransportSpec extends PlaySpecification {
     var tr: ActorRef = null
 
     def receive = {
-      case CreateTransport(t, _) =>
-        tr = context.actorOf(t, "transport")
+      case ct : CreateTransport =>
+        tr = context.actorOf(ct.props, "transport")
         tr ! RegisterTransport
         sender ! tr
 
