@@ -1,6 +1,7 @@
 package mirari.sockjs.impl
 
 import play.api.libs.json.{JsArray, JsValue}
+import org.apache.commons.lang3.StringUtils
 
 /**
  * @author alari
@@ -21,7 +22,12 @@ object Frames {
 
   def closed(code: Int, reason: String) = "c[" + code + ",\"" + reason + "\"]"
 
+  val Closed_AnotherConnectionStillOpen = closed(2010, "Another connection still open")
+  val Closed_GoAway = closed(3000, "Go away!")
+  val Closed_ConnectionInterrupted = closed(1002, "Connection interrupted")
+
   object Format {
+
     import StringEscapeUtils.escapeJavaScript
 
     def xhr(frame: String) = frame + "\n"
@@ -32,4 +38,25 @@ object Frames {
 
     def eventsource(frame: String) = s"""data: $frame\r\n\r\n"""
   }
+
+  object Prelude {
+    val xhrStreaming = StringUtils.repeat('h', 2048) + '\n'
+
+    val eventsource = "\r\n"
+
+    def htmlfile(callback: String) =
+      s"""<!doctype html>
+<html><head>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+</head><body><h2>Don't panic!</h2>
+  <script>
+    document.domain = document.domain;
+    var c = parent.$callback;
+    c.start();
+    function p(d) {c.message(d);};
+    window.onload = function() {c.stop();};
+  </script>""".replaceAll( """(?m)\s+$""", "")
+  }
+
 }
