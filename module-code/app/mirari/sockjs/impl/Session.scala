@@ -100,7 +100,7 @@ class Session(handlerProps: Props) extends Actor {
   def enqueueMessage(message: JsValue) {
     transport match {
       case Some(t) =>
-        t ! OutgoingRaw(s"a[$message]")
+        t ! OutgoingRaw(Frames.array(message))
         resetTransport()
       case None =>
         queue = queue.enqueue(message)
@@ -131,7 +131,7 @@ class Session(handlerProps: Props) extends Actor {
   def processQueue(): Unit = if (!queue.isEmpty) {
     transport.map {
       t =>
-        t ! OutgoingRaw("a" + JsArray(queue.toSeq))
+        t ! OutgoingRaw(Frames.array(queue.toSeq))
         queue = Queue()
         resetTransport()
     }
