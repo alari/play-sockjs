@@ -73,7 +73,7 @@ class PromiseTransport(promise: Promise[String]) extends Transport {
 }
 
 object Transport {
-  implicit val Timeout = akka.util.Timeout(100)
+  import SockJs.Timeout
 
   def fullDuplex(session: ActorRef)(implicit request: RequestHeader): Future[FullDuplex] = {
     val p = Promise[Concurrent.Channel[String]]()

@@ -17,7 +17,7 @@ class SessionSpec extends PlaySpecification {
 
   import Transport._
 
-  def echoSession() = system.actorOf(Props(new Session(Props(new Handler.Echo), timeoutMs = 100, heartbeatPeriodMs = 150)))
+  def echoSession() = system.actorOf(Props(new Session(Props(new SockJsHandler.Echo), timeoutMs = 100, heartbeatPeriodMs = 250)))
 
   "session actor" should {
     "timeout" in {
@@ -118,7 +118,7 @@ class SessionSpec extends PlaySpecification {
           singleFramePlex(s) must beLike[SingleFramePlex] {
             case tt =>
               tt.out.isCompleted must beFalse
-                tt.out must beEqualTo(Frames.Heartbeat).await(1, FiniteDuration(200, "milliseconds"))
+                tt.out must beEqualTo(Frames.Heartbeat).await(1, FiniteDuration(300, "milliseconds"))
           }.await
       }.await
     }

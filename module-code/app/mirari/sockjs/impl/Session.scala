@@ -12,7 +12,7 @@ import scala.Some
  * @author alari
  * @since 12/13/13
  */
-class Session(handlerProps: Props, timeoutMs: Int = 10000, heartbeatPeriodMs: Int = 25000) extends Actor {
+class Session(handlerProps: Props, timeoutMs: Int = SockJs.SessionTimeoutMs, heartbeatPeriodMs: Int = SockJs.SessionHeartbeatMs) extends Actor {
 
   import Session._
   import context.dispatcher
@@ -136,9 +136,9 @@ class Session(handlerProps: Props, timeoutMs: Int = 10000, heartbeatPeriodMs: In
       try {
         JsonCodec.decodeJson(msg) match {
           case JsArray(msgs) =>
-            msgs foreach (m => handler ! Handler.Incoming(m))
+            msgs foreach (m => handler ! SockJsHandler.Incoming(m))
           case m: JsValue =>
-            handler ! Handler.Incoming(m)
+            handler ! SockJsHandler.Incoming(m)
         }
       } catch {
         case e: Throwable =>

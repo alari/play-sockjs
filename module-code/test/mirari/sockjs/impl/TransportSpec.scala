@@ -121,7 +121,7 @@ class TransportSpec extends PlaySpecification {
           msg.future must be("1").await
           msg = Promise[String]()
 
-          (session ? "get transport")(Transport.Timeout) must beLike[Any] {
+          (session ? "get transport")(SockJs.Timeout) must beLike[Any] {
             case Some(a) =>
               a must beAnInstanceOf[ActorRef]
           }.await
@@ -130,7 +130,7 @@ class TransportSpec extends PlaySpecification {
           session ! OutgoingRaw("2")
           msg.future must be("2").await
 
-          (session ? "get transport")(Transport.Timeout) must beLike[Any] {
+          (session ? "get transport")(SockJs.Timeout) must beLike[Any] {
             case None =>
               1 must_== 1
           }.await
@@ -164,7 +164,7 @@ class TransportSpec extends PlaySpecification {
 
           msg.future must beEqualTo("(1)").await
 
-          (session ? "get transport")(Transport.Timeout) must beLike[Any] {
+          (session ? "get transport")(SockJs.Timeout) must beLike[Any] {
             case None =>
               1 must_== 1
           }.await
@@ -195,7 +195,7 @@ class TransportSpec extends PlaySpecification {
 
           msg.future must beEqualTo("(1)").await
 
-          (session ? "get transport")(Transport.Timeout) must beLike[Any] {
+          (session ? "get transport")(SockJs.Timeout) must beLike[Any] {
             case None =>
               1 must_== 1
           }.await

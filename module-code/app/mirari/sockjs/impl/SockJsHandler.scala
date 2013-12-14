@@ -8,9 +8,9 @@ import play.api.mvc.RequestHeader
  * @author alari
  * @since 12/13/13
  */
-class Handler extends Actor {
+class SockJsHandler extends Actor {
 
-  import Handler._
+  import SockJsHandler._
 
   def receive = {
     case request: RequestHeader =>
@@ -23,11 +23,11 @@ class Handler extends Actor {
   }
 }
 
-object Handler {
+object SockJsHandler {
 
   case class Incoming(msg: JsValue)
 
-  class Echo extends Handler {
+  class Echo extends SockJsHandler {
     override def receive = {
       case Incoming(msg) =>
         send(msg)
