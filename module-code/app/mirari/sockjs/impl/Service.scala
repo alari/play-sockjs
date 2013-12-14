@@ -34,4 +34,5 @@ object Service {
 
   case class SessionExists(id: String)
 
+  // TODO: case class Info
 }
