@@ -17,8 +17,8 @@ object SockJs {
 
   val services = system.actorOf(Props[Services])
 
-  def registerService(service: String, handler: Props, timeoutMs: Int = SockJs.SessionTimeoutMs, heartbeatPeriodMs: Int = SockJs.SessionHeartbeatMs): Future[ActorRef] =
-    (services ? Services.Register(service, handler, timeoutMs, heartbeatPeriodMs)).mapTo[ActorRef]
+  def registerService(service: String, handler: Props, withWebsockets: Boolean = true, cookieNeeded: Boolean = false, timeoutMs: Int = SockJs.SessionTimeoutMs, heartbeatPeriodMs: Int = SockJs.SessionHeartbeatMs): Future[ActorRef] =
+    (services ? Services.Register(service, Service.Params(withWebsockets, cookieNeeded, handler, timeoutMs, heartbeatPeriodMs))).mapTo[ActorRef]
 
   def checkSession(service: String, id: String): Future[Boolean] =
     (services ? Services.SessionExists(service, id)).mapTo[Boolean]
@@ -28,6 +28,9 @@ object SockJs {
 
   def createSession(service: String, id: String): Future[ActorRef] =
     (services ? Services.CreateAndRetrieveSession(service, id)).mapTo[ActorRef]
+
+  def getInfo(service: String): Future[Service.Info] =
+    (services ? Services.GetInfo(service)).mapTo[Service.Info]
 
   val hubs = null
 }
