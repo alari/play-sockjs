@@ -5,8 +5,6 @@ import akka.actor.{ActorRef, Actor, Props, ActorSystem}
 import play.api.libs.iteratee.{Concurrent, Iteratee}
 import scala.concurrent.Promise
 import akka.pattern.ask
-import scala.concurrent.duration.FiniteDuration
-import scala.collection.immutable.Queue
 
 
 /**
@@ -23,25 +21,15 @@ class TransportSpec extends PlaySpecification {
 
   def genSillySession = system.actorOf(Props(new Actor {
     var tr: ActorRef = null
-    var queue = Queue[String]()
 
     def receive = {
       case CreateTransport(t, _) =>
-        val tp = context.actorOf(t, "transport")
-        tp ! RegisterTransport
-        sender ! tp
-        tr = null
+        tr = context.actorOf(t, "transport")
+        tr ! RegisterTransport
+        sender ! tr
 
-      case RegisterTransport =>
-        tr = sender
-        queue.toSeq.foreach(m => self ! OutgoingRaw(m))
-        queue = Queue()
-
-      case o@ OutgoingRaw(m) =>
-        if(tr != null)
-          tr ! o
-        else queue = queue.enqueue(m)
-        tr = null
+      case o@OutgoingRaw(m) =>
+        tr ! o
 
       case Incoming(m) =>
         self ! OutgoingRaw(m)
@@ -150,22 +138,28 @@ class TransportSpec extends PlaySpecification {
       }.await
     }
 
-    "use frame formatter without payload" in {
+    "use frame formatter with payload" in {
       val session = genSillySession
 
-      val payload: String = null
+      val payload: String = "akka"
+
+      play.api.Logger.error("BUILDING HALF DUPLEX")
 
       Transport.halfDuplex(session, initialPayload = payload, maxStreamingBytes = 2, frameFormatter = a => s"($a)") should beLike[HalfDuplex] {
         case t =>
           var msg = Promise[String]()
+
+          play.api.Logger.error("WAITING FOR AKKA")
+
           val iteratee = Iteratee.foreach[String] {
             m =>
               msg.success(m)
           }
 
           t.out |>> iteratee
-
-          if(payload != null) {
+          // payload must be sent only when "out" is called
+          // or even out |>>
+          if (payload != null) {
             msg.future must be(payload).await
           }
           msg = Promise[String]()
@@ -181,10 +175,10 @@ class TransportSpec extends PlaySpecification {
       }.await
     }
 
-    "use frame formatter with payload" in {
+    "use frame formatter without payload" in {
       val session = genSillySession
 
-      val payload: String = "akka"
+      val payload: String = null
 
       Transport.halfDuplex(session, initialPayload = payload, maxStreamingBytes = 2, frameFormatter = a => s"($a)") should beLike[HalfDuplex] {
         case t =>
@@ -196,7 +190,7 @@ class TransportSpec extends PlaySpecification {
 
           t.out |>> iteratee
 
-          if(payload != null) {
+          if (payload != null) {
             msg.future must be(payload).await
           }
           msg = Promise[String]()

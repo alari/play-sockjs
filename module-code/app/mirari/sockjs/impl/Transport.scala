@@ -32,22 +32,20 @@ abstract class Transport extends Actor {
   def sendFrame(frame: String): Boolean
 }
 
-class ChannelTransport(channel: Concurrent.Channel[String], initialPayload: String = null, frameFormatter: String => String = a => a, maxStreamingBytes: Int = 127000) extends Transport {
+class ChannelTransport(channel: Future[Concurrent.Channel[String]], initialPayload: String = null, frameFormatter: String => String = a => a, maxStreamingBytes: Int = 127000) extends Transport {
   var bytesSent = 0
 
   val InitialPayloadDelay = FiniteDuration(10, "milliseconds")
 
-  override def register() {
-    if(initialPayload != null) {
-      play.api.Logger.error("FIXME: payload is sent only when this logging line is there "+initialPayload)
-      channel.push(initialPayload)
-        super.register()
-    } else super.register()
+  override def preStart() {
+    if (initialPayload != null) {
+      channel.map(_.push(initialPayload))
+    }
   }
 
   def sendFrame(frame: String) = {
     val msg = frameFormatter(frame)
-    channel.push(msg)
+    channel.map(_.push(msg))
     bytesSent += msg.length
     bytesSent < maxStreamingBytes
   }
@@ -64,9 +62,11 @@ object Transport {
   implicit val Timeout = akka.util.Timeout(100)
 
   def fullDuplex(session: ActorRef)(implicit request: RequestHeader): Future[FullDuplex] = {
-    val (out, channel) = outChannel()
-    withTransport(session, new ChannelTransport(channel)) {
+    val p = Promise[Concurrent.Channel[String]]()
+
+    withTransport(session, new ChannelTransport(p.future)) {
       transport =>
+        val out = Concurrent.unicast[String]({c => p.success(c)}, {transport ! PoisonPill})
         val in = Iteratee.foreach[String] {
           s =>
             incomingFrame(s, session)
@@ -79,10 +79,13 @@ object Transport {
   }
 
   def halfDuplex(session: ActorRef, initialPayload: String = null, frameFormatter: String => String = a => a, maxStreamingBytes: Int = 127000)(implicit request: RequestHeader): Future[HalfDuplex] = {
-    val (out, channel) = outChannel()
-    withTransport(session, new ChannelTransport(channel, initialPayload, frameFormatter, maxStreamingBytes)) {
-      _ =>
-        HalfDuplex(out &> Concurrent.buffer(maxStreamingBytes / 10))
+    val p = Promise[Concurrent.Channel[String]]()
+
+    withTransport(session, new ChannelTransport(p.future, initialPayload, frameFormatter, maxStreamingBytes)) {
+      transport =>
+        val out = Concurrent.unicast[String]({c => p.success(c)}, {transport ! PoisonPill})
+
+        HalfDuplex(out)
     }
   }
 
@@ -94,11 +97,11 @@ object Transport {
     }
   }
 
-  private def outChannel(): (Enumerator[String], Concurrent.Channel[String]) = Concurrent.broadcast[String]
-
   private def withTransport[T](session: ActorRef, transportBuilder: => Transport)(f: ActorRef => T)(implicit request: RequestHeader): Future[T] = {
     import akka.pattern.ask
-    session ? Session.CreateTransport(Props({transportBuilder}), request) map {
+    session ? Session.CreateTransport(Props({
+      transportBuilder
+    }), request) map {
       case transport: ActorRef =>
         f(transport)
 
