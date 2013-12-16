@@ -44,8 +44,8 @@ object Frames {
 
     val eventsource = "\r\n"
 
-    def htmlfile(callback: String) =
-      s"""<!doctype html>
+    def htmlfile(callback: String) = {
+     val h = s"""<!doctype html>
 <html><head>
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -57,6 +57,10 @@ object Frames {
     function p(d) {c.message(d);};
     window.onload = function() {c.stop();};
   </script>""".replaceAll( """(?m)\s+$""", "")
+
+      h + StringUtils.repeat(' ', 1024 - h.length + 14)
+    }
+
   }
 
 }

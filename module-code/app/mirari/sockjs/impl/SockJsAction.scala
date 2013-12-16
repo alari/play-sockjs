@@ -3,7 +3,7 @@ package mirari.sockjs.impl
 import play.api.mvc.{Action, Results, Handler}
 import akka.actor.ActorRef
 
-import mirari.sockjs.impl.api.{EventsourceTransportController, XhrTransportController, JsonpTransportController, StaticController}
+import mirari.sockjs.impl.api._
 
 /**
  * @author alari
@@ -67,7 +67,9 @@ case class EventSource(session: String) extends SockJsAction {
   override def handler(service: ActorRef) = EventsourceTransportController.eventsource(service, session)
 }
 
-case class HtmlFile(session: String) extends SockJsAction
+case class HtmlFile(session: String) extends SockJsAction {
+  override def handler(service: ActorRef) = HtmlFileTransportController.htmlfile(service, session)
+}
 
 case class WebSocket(session: String) extends SockJsAction
 
