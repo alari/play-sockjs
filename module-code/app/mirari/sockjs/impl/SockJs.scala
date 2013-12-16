@@ -31,6 +31,4 @@ object SockJs {
 
   def getInfo(service: String): Future[Service.Info] =
     (services ? Services.GetInfo(service)).mapTo[Service.Info]
-
-  val hubs = null
 }
