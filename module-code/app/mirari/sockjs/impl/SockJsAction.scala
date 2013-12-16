@@ -1,23 +1,16 @@
 package mirari.sockjs.impl
 
-import play.api.mvc.{EssentialAction, Action, Results, Handler}
+import play.api.mvc.{Action, Results, Handler}
 import akka.actor.ActorRef
-import scala.concurrent.Future
 
-import Results._
 import mirari.sockjs.impl.api.StaticController
 
 /**
  * @author alari
  * @since 12/16/13
  */
-abstract sealed class SockJsAction{
-  import SockJs.Timeout
-  import SockJs.system.dispatcher
-  import akka.pattern.ask
-
-  def handler(service: ActorRef): Handler = t.test
-
+abstract sealed class SockJsAction {
+  def handler(service: ActorRef): Handler = StaticController.greeting
 }
 
 object t extends play.api.mvc.Controller {
@@ -38,7 +31,9 @@ case object InfoOptions extends SockJsAction {
 
 case object Info extends SockJsAction
 
-case object RawWebsockset extends SockJsAction
+case object RawWebsockset extends SockJsAction {
+  override def handler(service: ActorRef) = StaticController.websocket
+}
 
 case class Jsonp(session: String) extends SockJsAction
 
@@ -63,5 +58,7 @@ case class HtmlFile(session: String) extends SockJsAction
 case class WebSocket(session: String) extends SockJsAction
 
 case object NotFound extends SockJsAction {
-  override def handler(service: ActorRef) = Action{Results.NotFound}
+  override def handler(service: ActorRef) = Action {
+    Results.NotFound
+  }
 }

@@ -1,11 +1,14 @@
 package mirari.sockjs.impl.api
 
-import play.api.mvc.Action
+import play.api.mvc.{WebSocket, Action}
 import play.api.libs.json.Json
 import scala.util.Random
 import java.security.MessageDigest
 import org.joda.time.DateTime
 import play.api.Play.current
+import play.api.libs.iteratee._
+import scala.concurrent.{ExecutionContext, Promise, Future}
+import scala.Some
 
 /**
  * @author alari
@@ -24,9 +27,9 @@ object StaticController extends SockJsController {
         "origins" -> Seq("*:*"),
         "entropy" -> randomNumber()
       )).withHeaders(
-        CONTENT_TYPE -> "application/json; charset=UTF-8",
-        CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0"
-      ).withHeaders(cors: _*)
+          CONTENT_TYPE -> "application/json; charset=UTF-8",
+          CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0"
+        ).withHeaders(cors: _*)
   }
 
   def greeting = Action {
@@ -51,7 +54,7 @@ object StaticController extends SockJsController {
   <h2>Don't panic!</h2>
   <p>This is a SockJS hidden iframe. It's used for cross domain magic.</p>
 </body>
-</html>""".replaceAll("""(?m)\s+$""", "")
+</html>""".replaceAll( """(?m)\s+$""", "")
 
     lazy val etag: String = {
       import org.apache.commons.codec.binary.Base64
@@ -76,5 +79,17 @@ object StaticController extends SockJsController {
             EXPIRES -> DateTime.now().plusYears(1).toString
           )
       }
+  }
+
+  def websocket = WebSocket.async[String] {
+    request =>
+      import ExecutionContext.Implicits.global
+
+      val p = Promise[Concurrent.Channel[String]]()
+      val f = p.future
+
+      Future.successful((Iteratee.foreach[String](c => f.map(_.push(c))), Concurrent.unicast[String](onStart = {
+        c => p.success(c)
+      })))
   }
 }
