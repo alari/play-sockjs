@@ -3,7 +3,7 @@ package mirari.sockjs.impl
 import play.api.mvc.{Action, Results, Handler}
 import akka.actor.ActorRef
 
-import mirari.sockjs.impl.api.{XhrTransportController, JsonpTransportController, StaticController}
+import mirari.sockjs.impl.api.{EventsourceTransportController, XhrTransportController, JsonpTransportController, StaticController}
 
 /**
  * @author alari
@@ -63,7 +63,9 @@ case class XhrStreamingOptions(session: String) extends SockJsAction{
   override def handler(service: ActorRef) = XhrTransportController.opts
 }
 
-case class EventSource(session: String) extends SockJsAction
+case class EventSource(session: String) extends SockJsAction {
+  override def handler(service: ActorRef) = EventsourceTransportController.eventsource(service, session)
+}
 
 case class HtmlFile(session: String) extends SockJsAction
 

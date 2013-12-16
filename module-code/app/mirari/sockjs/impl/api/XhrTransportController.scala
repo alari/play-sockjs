@@ -27,12 +27,13 @@ object XhrTransportController extends SockJsController with SockJsTransports {
   }
 
   val maxLength = 4096
+  val maxSendLength = 5000
 
   def xhrSend(service: ActorRef, session: String) = Action.async(parse.anyContent) {
     implicit request =>
       getSession(service, session).map {
         case Some(s) =>
-          val message: String = request.body.asRaw.flatMap(r ⇒ r.asBytes(maxLength).map(b ⇒ new String(b)))
+          val message: String = request.body.asRaw.flatMap(r ⇒ r.asBytes(maxSendLength).map(b ⇒ new String(b)))
             .getOrElse(request.body.asText
             .orElse(request.body.asJson map Json.stringify)
             .getOrElse(""))
