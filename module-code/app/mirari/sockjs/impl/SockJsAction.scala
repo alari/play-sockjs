@@ -3,7 +3,7 @@ package mirari.sockjs.impl
 import play.api.mvc.{Action, Results, Handler}
 import akka.actor.ActorRef
 
-import mirari.sockjs.impl.api.StaticController
+import mirari.sockjs.impl.api.{JsonpTransportController, StaticController}
 
 /**
  * @author alari
@@ -11,10 +11,6 @@ import mirari.sockjs.impl.api.StaticController
  */
 abstract sealed class SockJsAction {
   def handler(service: ActorRef): Handler = StaticController.greeting
-}
-
-object t extends play.api.mvc.Controller {
-  def test = TODO
 }
 
 case object Greetings extends SockJsAction {
@@ -35,9 +31,13 @@ case object RawWebsockset extends SockJsAction {
   override def handler(service: ActorRef) = StaticController.websocket
 }
 
-case class Jsonp(session: String) extends SockJsAction
+case class Jsonp(session: String) extends SockJsAction {
+  override def handler(service: ActorRef) = JsonpTransportController.jsonp(service, session)
+}
 
-case class JsonpSend(session: String) extends SockJsAction
+case class JsonpSend(session: String) extends SockJsAction {
+  override def handler(service: ActorRef) = JsonpTransportController.jsonpSend(service, session)
+}
 
 case class XhrPolling(session: String) extends SockJsAction
 

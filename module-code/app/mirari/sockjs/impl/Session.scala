@@ -85,7 +85,7 @@ class Session(handlerProps: Props, timeoutMs: Int = SockJs.SessionTimeoutMs, hea
     case Close =>
       transport.map {
         t =>
-          t ! OutgoingRaw(Frames.Closed)
+          t ! OutgoingRaw(Frames.Closed_GoAway)
           t ! PoisonPill
       }
       transport = None
@@ -145,6 +145,10 @@ class Session(handlerProps: Props, timeoutMs: Int = SockJs.SessionTimeoutMs, hea
           play.api.Logger.error("Cannot parse json", e)
           self ! Close
       }
+    case IncomingJson(JsArray(msgs)) =>
+      msgs foreach (m => handler ! SockJsHandler.Incoming(m))
+    case IncomingJson(m) =>
+      handler ! SockJsHandler.Incoming(m)
   }
 
   def rejectConnections(reason: String): Receive = {
@@ -159,16 +163,19 @@ class Session(handlerProps: Props, timeoutMs: Int = SockJs.SessionTimeoutMs, hea
   }
 
 
-  val openBehaviour = unregisterTransport orElse
+  val openBehaviour =
+    unregisterTransport orElse
     rejectConnections(Frames.Closed_AnotherConnectionStillOpen) orElse
     handleIncomings orElse
     sendToTransport orElse
     closeSession
 
-  val closedBehaviour = rejectConnections(Frames.Closed_GoAway) orElse
+  val closedBehaviour =
+    rejectConnections(Frames.Closed_GoAway) orElse
     waitForTimeout
 
-  val connectingBehaviour = waitForTransport orElse
+  val connectingBehaviour =
+    waitForTransport orElse
     enqueueMessages orElse
     handleIncomings orElse
     waitForTimeout orElse
@@ -194,6 +201,8 @@ class Session(handlerProps: Props, timeoutMs: Int = SockJs.SessionTimeoutMs, hea
 object Session {
 
   case class Incoming(msg: String)
+
+  case class IncomingJson(msg: JsValue)
 
   case class OutgoingRaw(msg: String)
 

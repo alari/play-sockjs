@@ -35,9 +35,12 @@ object SockJsHandler {
   }
 
   class Closed extends SockJsHandler {
-    context.parent ! Session.Close
+    var events = 0
     override def receive = {
       case _ =>
+        if(events > 0)
+          context.parent ! Session.Close
+      events += 1
     }
   }
 

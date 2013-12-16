@@ -41,7 +41,9 @@ trait SockJsService extends Router.Routes {
       if (rh.path.startsWith(path)) {
         if (rh.path == path + "/info" && rh.method == GET) {
           StaticController.info(websocketEnabled, cookieNeeded)
-        } else dispatch(rh.method, rh.path.drop(path.length)).handler(service)
+        } else {
+          dispatch(rh.method, rh.path.drop(path.length)).handler(service)
+        }
       } else {
         default(rh)
       }

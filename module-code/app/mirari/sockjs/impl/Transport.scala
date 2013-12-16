@@ -1,7 +1,7 @@
 package mirari.sockjs.impl
 
 import play.api.libs.iteratee.{Iteratee, Enumerator, Concurrent}
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import akka.actor._
 import play.api.mvc.{Controller, RequestHeader}
 import concurrent.ExecutionContext.Implicits.global
@@ -153,28 +153,28 @@ trait SockJsTransports {
 
   val MaxBytesSent = 127000
 
-  def xhrPollingTransport(session: ActorRef)(implicit request: RequestHeader) = singleFramePlex(session).map {
+  protected def xhrPollingTransport(session: ActorRef)(implicit request: RequestHeader, ctx: ExecutionContext) = singleFramePlex(session).flatMap {
     _.out.map(Frames.Format.xhr)
   }
-  def xhrStreamingTransport(session: ActorRef, maxBytesSent: Int = MaxBytesSent)(implicit request: RequestHeader) =
+  protected def xhrStreamingTransport(session: ActorRef, maxBytesSent: Int = MaxBytesSent)(implicit request: RequestHeader) =
     halfDuplex(session, Frames.Prelude.xhrStreaming, Frames.Format.xhr, maxBytesSent).map {
       _.out
     }
-  def eventsourceTransport(session: ActorRef, maxBytesSent: Int = MaxBytesSent)(implicit request: RequestHeader) =
+  protected def eventsourceTransport(session: ActorRef, maxBytesSent: Int = MaxBytesSent)(implicit request: RequestHeader) =
     halfDuplex(session, Frames.Prelude.eventsource, Frames.Format.eventsource, maxBytesSent).map {
       _.out
     }
 
-  def htmlfileTransport(session: ActorRef, callback: String, maxBytesSent: Int = MaxBytesSent)(implicit request: RequestHeader) =
+  protected def htmlfileTransport(session: ActorRef, callback: String, maxBytesSent: Int = MaxBytesSent)(implicit request: RequestHeader) =
     halfDuplex(session, Frames.Prelude.htmlfile(callback), Frames.Format.htmlfile, maxBytesSent).map {
       _.out
     }
 
-  def jsonpTransport(session: ActorRef, callback: String)(implicit request: RequestHeader) = singleFramePlex(session).map {
+  protected def jsonpTransport(session: ActorRef, callback: String)(implicit request: RequestHeader, ctx: ExecutionContext) = singleFramePlex(session).flatMap {
     _.out.map(Frames.Format.jsonp(callback))
   }
 
-  def websocketTransport(session: ActorRef)(implicit request: RequestHeader) = fullDuplex(session).map {
+  protected def websocketTransport(session: ActorRef)(implicit request: RequestHeader) = fullDuplex(session).map {
     t =>
       (t.in, t.out)
   }
