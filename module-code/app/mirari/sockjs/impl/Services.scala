@@ -31,9 +31,6 @@ class Services extends Actor {
 
     case CreateAndRetrieveSession(service, id) =>
       fromService(service, Service.CreateAndRetrieveSession(id))
-
-    case GetInfo(service) =>
-      fromService(service, Service.Info)
   }
 
   def withService(service: String)(f: ActorRef => Unit) {

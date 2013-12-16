@@ -3,18 +3,31 @@ package mirari.sockjs.impl
 import play.core.Router
 import play.api.mvc.{RequestHeader, Handler}
 import scala.runtime.AbstractPartialFunction
+import akka.actor.{ActorRef, Props}
+import mirari.sockjs.impl.api.StaticController
 
 /**
  * @author alari
  * @since 12/16/13
  */
-case class ServiceRoutes(service: String) extends Router.Routes {
+trait SockJsService extends Router.Routes {
 
-  import ServiceRoutes._
+  import SockJsService._
 
   private var path: String = ""
+  private var serviceName: String = ""
+  private var service: ActorRef = SockJs.system.deadLetters
 
   def setPrefix(prefix: String) {
+    serviceName = prefix.substring(prefix.lastIndexOf('/') + 1)
+
+    import SockJs.system.dispatcher
+
+    SockJs.registerService(serviceName, Service.Params(
+      handlerProps,
+      sessionTimeoutMs,
+      heartbeatPeriodMs)).map(r => service = r)
+
     path = prefix
   }
 
@@ -25,9 +38,10 @@ case class ServiceRoutes(service: String) extends Router.Routes {
   def routes = new AbstractPartialFunction[RequestHeader, Handler] {
 
     override def applyOrElse[A <: RequestHeader, B >: Handler](rh: A, default: A => B) = {
-
       if (rh.path.startsWith(path)) {
-        dispatch(rh.method, rh.path.drop(path.length)).handler(service)
+        if (rh.path == path + "/info" && rh.method == GET) {
+          StaticController.info(websocketEnabled, cookieNeeded)
+        } else dispatch(rh.method, rh.path.drop(path.length)).handler(service)
       } else {
         default(rh)
       }
@@ -36,10 +50,15 @@ case class ServiceRoutes(service: String) extends Router.Routes {
     def isDefinedAt(rh: RequestHeader) = rh.path.startsWith(path)
   }
 
-
+  val handlerProps: Props = Props[SockJsHandler.Echo]
+  val websocketEnabled: Boolean = true
+  val cookieNeeded: Boolean = false
+  val sessionTimeoutMs: Int = SockJs.SessionTimeoutMs
+  val heartbeatPeriodMs: Int = SockJs.SessionHeartbeatMs
 }
 
-object ServiceRoutes {
+object SockJsService {
+
   def serverSesR(suffix: String) = ("^/[^/.]+/([^/.]+)" + suffix + "$").r
 
   val GreetingsR = "^/?$".r
@@ -87,43 +106,4 @@ object ServiceRoutes {
 
     case _ => NotFound
   }
-
-  abstract sealed class SockJsAction {
-    def handler(service: String): Handler = ???
-  }
-
-  case object Greetings extends SockJsAction
-
-  case object Iframe extends SockJsAction
-
-  case object InfoOptions extends SockJsAction
-
-  case object Info extends SockJsAction
-
-  case object RawWebsockset extends SockJsAction
-
-  case class Jsonp(session: String) extends SockJsAction
-
-  case class JsonpSend(session: String) extends SockJsAction
-
-  case class XhrPolling(session: String) extends SockJsAction
-
-  case class XhrPollingOptions(session: String) extends SockJsAction
-
-  case class XhrSend(session: String) extends SockJsAction
-
-  case class XhrSendOptions(session: String) extends SockJsAction
-
-  case class XhrStreaming(session: String) extends SockJsAction
-
-  case class XhrStreamingOptions(session: String) extends SockJsAction
-
-  case class EventSource(session: String) extends SockJsAction
-
-  case class HtmlFile(session: String) extends SockJsAction
-
-  case class WebSocket(session: String) extends SockJsAction
-
-  case object NotFound extends SockJsAction
-
 }

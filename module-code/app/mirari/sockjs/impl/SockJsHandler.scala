@@ -8,7 +8,7 @@ import play.api.mvc.RequestHeader
  * @author alari
  * @since 12/13/13
  */
-class SockJsHandler extends Actor {
+trait SockJsHandler extends Actor {
 
   import SockJsHandler._
 
@@ -31,6 +31,13 @@ object SockJsHandler {
     override def receive = {
       case Incoming(msg) =>
         send(msg)
+    }
+  }
+
+  class Closed extends SockJsHandler {
+    context.parent ! Session.Close
+    override def receive = {
+      case _ =>
     }
   }
 

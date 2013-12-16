@@ -12,11 +12,7 @@ class Service(params: Service.Params) extends Actor {
 
   import Service._
 
-  def info() = Info(params.websocket, params.cookie_needed)
-
   def receive = {
-    case Info =>
-      sender ! info()
 
     case SessionExists(id) =>
       sender ! context.child(id).isDefined
@@ -41,23 +37,11 @@ object Service {
 
   case class SessionExists(id: String)
 
-  private def randomNumber() = 2L << 30 + Random.nextInt
-
   case class Params(
-                     websocket: Boolean,
-                     cookie_needed: Boolean,
                      handlerProps: Props,
                      timeoutMs: Int = SockJs.SessionTimeoutMs,
                      heartbeatPeriodMs: Int = SockJs.SessionHeartbeatMs
                      )
 
-  case class Info(websocket: Boolean,
-                  cookie_needed: Boolean,
-                  origins: Seq[String] = Seq("*:*"),
-                  entropy: Long = randomNumber())
-
-  object Info {
-    implicit val writes = Json.writes[Info]
-  }
 
 }
