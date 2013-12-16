@@ -1,12 +1,15 @@
 package mirari.sockjs.impl.api
 
 import akka.actor.ActorRef
-import play.api.mvc.{AnyContent, Request, SimpleResult, Action}
+import play.api.mvc._
 import mirari.sockjs.impl.{Session, SockJsTransports}
 import scala.concurrent.Future
 import mirari.sockjs.frames.JsonCodec
 import com.fasterxml.jackson.core.JsonParseException
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.Some
+import play.api.mvc.SimpleResult
+import java.util.UUID
 
 /**
  * @author alari
@@ -22,7 +25,7 @@ object JsonpTransportController extends SockJsController with SockJsTransports {
               jsonpTransport(s, callback).map {
                 Ok(_).withHeaders(cors: _*).withHeaders(
                   CONTENT_TYPE -> "application/javascript;charset=UTF-8",
-                  CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0")
+                  CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0").withCookies(cookies: _*)
               }
           }.getOrElse(Future.successful(InternalServerError("\"callback\" parameter required\n")))
       }
@@ -40,7 +43,7 @@ object JsonpTransportController extends SockJsController with SockJsTransports {
                   .withHeaders(
                     CONTENT_TYPE -> "text/plain; charset=UTF-8",
                     CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0")
-                  .withHeaders(cors: _*)
+                  .withHeaders(cors: _*).withCookies(cookies: _*)
               } catch {
                 case e: JsonParseException => InternalServerError("Broken JSON encoding.")
               }

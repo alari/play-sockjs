@@ -29,11 +29,14 @@ class TransportSpec extends PlaySpecification {
         tr ! RegisterTransport
         sender ! tr
 
-      case o@OutgoingRaw(m) =>
+      case o: OutgoingRaw =>
         tr ! o
 
       case Incoming(m) =>
         self ! OutgoingRaw(m)
+
+      case IncomingJson(m) =>
+        self ! OutgoingRaw(m.toString())
 
       case "get transport" =>
         sender ! context.child("transport")
@@ -150,6 +153,7 @@ class TransportSpec extends PlaySpecification {
 
           val iteratee = Iteratee.foreach[String] {
             m =>
+              play.api.Logger.error(s"\n$m\n")
               msg.success(m)
           }
 
@@ -161,9 +165,9 @@ class TransportSpec extends PlaySpecification {
           }
           msg = Promise[String]()
 
-          session ! OutgoingRaw("1")
+          session ! OutgoingRaw("z")
 
-          msg.future must beEqualTo("(1)").await
+          msg.future must beEqualTo("(z)").await
 
           (session ? "get transport")(SockJs.Timeout) must beLike[Any] {
             case None =>
@@ -275,21 +279,21 @@ class TransportSpec extends PlaySpecification {
 
           out |>> t.in
 
-          channel.push("0")
+          channel.push("\"0\"")
 
-          msg.future must be("0").await
-
-          msg = Promise[String]()
-
-          session ! OutgoingRaw("1")
-
-          msg.future must be("1").await
+          msg.future must beEqualTo("\"0\"").await
 
           msg = Promise[String]()
 
-          channel.push("2")
+          session ! OutgoingRaw("\"1\"")
 
-          msg.future must be("2").await
+          msg.future must beEqualTo("\"1\"").await
+
+          msg = Promise[String]()
+
+          channel.push("\"2\"")
+
+          msg.future must beEqualTo("\"2\"").await
 
       }.await
     }

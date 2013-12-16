@@ -142,7 +142,7 @@ class Session(handlerProps: Props, timeoutMs: Int = SockJs.SessionTimeoutMs, hea
         }
       } catch {
         case e: Throwable =>
-          play.api.Logger.error("Cannot parse json", e)
+          play.api.Logger.debug("Cannot parse json", e)
           self ! Close
       }
     case IncomingJson(JsArray(msgs)) =>
@@ -156,30 +156,32 @@ class Session(handlerProps: Props, timeoutMs: Int = SockJs.SessionTimeoutMs, hea
       transportId += 1
       val a = context.actorOf(props, s"transport.$transportId")
       a ! OutgoingRaw(reason)
+      a ! PoisonPill
       sender ! a
 
     case RegisterTransport =>
       sender ! OutgoingRaw(reason)
+      sender ! PoisonPill
   }
 
 
   val openBehaviour =
     unregisterTransport orElse
-    rejectConnections(Frames.Closed_AnotherConnectionStillOpen) orElse
-    handleIncomings orElse
-    sendToTransport orElse
-    closeSession
+      rejectConnections(Frames.Closed_AnotherConnectionStillOpen) orElse
+      handleIncomings orElse
+      sendToTransport orElse
+      closeSession
 
   val closedBehaviour =
     rejectConnections(Frames.Closed_GoAway) orElse
-    waitForTimeout
+      waitForTimeout
 
   val connectingBehaviour =
     waitForTransport orElse
-    enqueueMessages orElse
-    handleIncomings orElse
-    waitForTimeout orElse
-    closeSession
+      enqueueMessages orElse
+      handleIncomings orElse
+      waitForTimeout orElse
+      closeSession
 
 
   def launchHeartbeat() = {

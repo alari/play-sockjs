@@ -7,6 +7,7 @@ import play.api.mvc.RequestHeader
 import concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 import mirari.sockjs.impl.Transport.{StreamingFinished, ConnectionInterrupted}
+import com.fasterxml.jackson.core.JsonParseException
 
 /**
  * @author alari
@@ -61,10 +62,15 @@ class ChannelTransport(channel: Future[Concurrent.Channel[String]], initialPaylo
     val msg = frameFormatter(frame)
     channel.map(_.push(msg))
     bytesSent += msg.length
-    if(bytesSent >= maxStreamingBytes) {
+    if (bytesSent >= maxStreamingBytes) {
       channel.map(_.eofAndEnd())
       false
     } else true
+  }
+
+  override def postStop() {
+    channel.map(_.eofAndEnd())
+    super.postStop()
   }
 }
 
@@ -90,8 +96,16 @@ object Transport {
           transport ! StreamingFinished
         })
         val in = Iteratee.foreach[String] {
-          s =>
-            incomingFrame(s, session)
+          message =>
+            if (message != "")
+              try {
+                session ! Session.IncomingJson(JsonCodec.decodeJson(message))
+              } catch {
+                case e: JsonParseException =>
+                  play.api.Logger.error("JSON", e)
+                  transport ! ConnectionInterrupted
+                  p.future.map(_.eofAndEnd())
+              }
         } map {
           _ =>
             transport ! ConnectionInterrupted

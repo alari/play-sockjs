@@ -71,7 +71,9 @@ case class HtmlFile(session: String) extends SockJsAction {
   override def handler(service: ActorRef) = HtmlFileTransportController.htmlfile(service, session)
 }
 
-case class WebSocket(session: String) extends SockJsAction
+case class WebSocket(session: String) extends SockJsAction {
+  override def handler(service: ActorRef) = WebsocketTransportController.websocket(service, session)
+}
 
 case object NotFound extends SockJsAction {
   override def handler(service: ActorRef) = Action {

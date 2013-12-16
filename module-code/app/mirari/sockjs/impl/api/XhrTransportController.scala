@@ -1,12 +1,13 @@
 package mirari.sockjs.impl.api
 
 import akka.actor.ActorRef
-import play.api.mvc.Action
+import play.api.mvc.{Cookie, Action}
 import mirari.sockjs.impl.{Session, SockJsTransports}
 import mirari.sockjs.frames.JsonCodec
 import com.fasterxml.jackson.core.JsonParseException
 import scala.concurrent.ExecutionContext.Implicits.global
 import play.api.libs.json.Json
+import java.util.UUID
 
 /**
  * @author alari
@@ -22,7 +23,7 @@ object XhrTransportController extends SockJsController with SockJsTransports {
           xhrPollingTransport(s).map(Ok(_).withHeaders(
             CONTENT_TYPE -> "application/javascript;charset=UTF-8",
             CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0"
-          ).withHeaders(cors: _*))
+          ).withHeaders(cors: _*).withCookies(cookies: _*))
       }
   }
 
@@ -47,7 +48,7 @@ object XhrTransportController extends SockJsController with SockJsTransports {
                 .withHeaders(
                   CONTENT_TYPE -> "text/plain; charset=UTF-8",
                   CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0")
-                .withHeaders(cors: _*)
+                .withHeaders(cors: _*).withCookies(cookies: _*)
             } catch {
               case e: JsonParseException ⇒
                 InternalServerError("Broken JSON encoding.")
@@ -66,7 +67,7 @@ object XhrTransportController extends SockJsController with SockJsTransports {
               Ok.chunked(out).withHeaders(
                 CONTENT_TYPE -> "application/javascript;charset=UTF-8",
                 CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0"
-              ).withHeaders(cors: _*)
+              ).withHeaders(cors: _*).withCookies(cookies: _*)
           }
       }
   }

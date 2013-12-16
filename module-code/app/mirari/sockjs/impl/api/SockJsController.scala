@@ -34,6 +34,10 @@ trait SockJsController extends Controller {
       (for (acrh ← req.headers.get(ACCESS_CONTROL_REQUEST_HEADERS))
       yield ACCESS_CONTROL_ALLOW_HEADERS -> acrh).toSeq)
 
+  def cookies(implicit req: RequestHeader) = Seq(
+    req.cookies.get("JSESSIONID").getOrElse(Cookie("JSESSIONID", "dummy"))
+  )
+
   import SockJs.Timeout
   import akka.pattern.ask
 

@@ -1,9 +1,10 @@
 package mirari.sockjs.impl.api
 
 import mirari.sockjs.impl.SockJsTransports
-import play.api.mvc.Action
+import play.api.mvc.{Cookie, Action}
 import akka.actor.ActorRef
 import concurrent.ExecutionContext.Implicits.global
+import java.util.UUID
 
 /**
  * @author alari
@@ -21,7 +22,7 @@ object EventsourceTransportController extends SockJsController with SockJsTransp
               Ok.chunked(out).withHeaders(
                 CONTENT_TYPE -> "text/event-stream;charset=UTF-8",
                 CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0")
-                .withHeaders(cors: _*)
+                .withHeaders(cors: _*).withCookies(cookies: _*)
           }
       }
   }
