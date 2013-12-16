@@ -3,7 +3,7 @@ package mirari.sockjs.impl
 import play.api.mvc.{Action, Results, Handler}
 import akka.actor.ActorRef
 
-import mirari.sockjs.impl.api.{JsonpTransportController, StaticController}
+import mirari.sockjs.impl.api.{XhrTransportController, JsonpTransportController, StaticController}
 
 /**
  * @author alari
@@ -39,17 +39,27 @@ case class JsonpSend(session: String) extends SockJsAction {
   override def handler(service: ActorRef) = JsonpTransportController.jsonpSend(service, session)
 }
 
-case class XhrPolling(session: String) extends SockJsAction
+case class XhrPolling(session: String) extends SockJsAction {
+  override def handler(service: ActorRef) = XhrTransportController.xhrPolling(service, session)
+}
 
-case class XhrPollingOptions(session: String) extends SockJsAction
+case class XhrPollingOptions(session: String) extends SockJsAction {
+  override def handler(service: ActorRef) = XhrTransportController.opts
+}
 
-case class XhrSend(session: String) extends SockJsAction
+case class XhrSend(session: String) extends SockJsAction {
+  override def handler(service: ActorRef) = XhrTransportController.xhrSend(service, session)
+}
 
-case class XhrSendOptions(session: String) extends SockJsAction
+case class XhrSendOptions(session: String) extends SockJsAction{
+  override def handler(service: ActorRef) = XhrTransportController.opts
+}
 
 case class XhrStreaming(session: String) extends SockJsAction
 
-case class XhrStreamingOptions(session: String) extends SockJsAction
+case class XhrStreamingOptions(session: String) extends SockJsAction{
+  override def handler(service: ActorRef) = XhrTransportController.opts
+}
 
 case class EventSource(session: String) extends SockJsAction
 

@@ -15,7 +15,7 @@ object SockJs {
   implicit val system = ActorSystem("sockjs")
   implicit val Timeout = akka.util.Timeout(100)
 
-  val services = system.actorOf(Props[Services])
+  val services = system.actorOf(Props[Services], "services")
 
   def registerService(service: String, params: Service.Params): Future[ActorRef] =
     (services ? Services.Register(service, params)).mapTo[ActorRef]
