@@ -1,16 +1,15 @@
 package mirari.sockjs.impl.api
 
 import mirari.sockjs.impl.SockJsTransports
-import play.api.mvc.{Cookie, Action}
+import play.api.mvc.Action
 import akka.actor.ActorRef
 import concurrent.ExecutionContext.Implicits.global
-import java.util.UUID
 
 /**
  * @author alari
  * @since 12/16/13
  */
-object EventsourceTransportController extends SockJsController with SockJsTransports{
+object EventsourceTransportController extends SockJsController with SockJsTransports {
   val maxBytesSent = 4096
 
   def eventsource(service: ActorRef, session: String) = Action.async {

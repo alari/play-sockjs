@@ -9,7 +9,6 @@ import com.fasterxml.jackson.core.JsonParseException
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.Some
 import play.api.mvc.SimpleResult
-import java.util.UUID
 
 /**
  * @author alari

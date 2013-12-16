@@ -1,11 +1,10 @@
 package mirari.sockjs.impl.api
 
 import mirari.sockjs.impl.SockJsTransports
-import play.api.mvc.{Cookie, Action}
+import play.api.mvc.Action
 import akka.actor.ActorRef
 import concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import java.util.UUID
 
 /**
  * @author alari

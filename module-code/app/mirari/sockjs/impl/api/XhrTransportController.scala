@@ -1,13 +1,12 @@
 package mirari.sockjs.impl.api
 
 import akka.actor.ActorRef
-import play.api.mvc.{Cookie, Action}
+import play.api.mvc.Action
 import mirari.sockjs.impl.{Session, SockJsTransports}
 import mirari.sockjs.frames.JsonCodec
 import com.fasterxml.jackson.core.JsonParseException
 import scala.concurrent.ExecutionContext.Implicits.global
 import play.api.libs.json.Json
-import java.util.UUID
 
 /**
  * @author alari
