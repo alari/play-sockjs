@@ -2,9 +2,10 @@ package mirari.sockjs.impl
 
 import play.api.test.{FakeRequest, PlaySpecification}
 import akka.actor.{ActorRef, Actor, Props, ActorSystem}
-import play.api.libs.iteratee.{Concurrent, Iteratee}
+import play.api.libs.iteratee.{Enumerator, Concurrent, Iteratee}
 import scala.concurrent.Promise
 import akka.pattern.ask
+import play.api.mvc.RequestHeader
 
 
 /**
@@ -23,7 +24,7 @@ class TransportSpec extends PlaySpecification {
     var tr: ActorRef = null
 
     def receive = {
-      case ct : CreateTransport =>
+      case ct: CreateTransport =>
         tr = context.actorOf(ct.props, "transport")
         tr ! RegisterTransport
         sender ! tr
@@ -199,6 +200,39 @@ class TransportSpec extends PlaySpecification {
             case None =>
               1 must_== 1
           }.await
+      }.await
+    }
+
+    "act as xhr stream" in {
+      val session = genSillySession
+
+      halfDuplex(session, Frames.Prelude.xhrStreaming, Frames.Format.xhr, 3096) must beLike[HalfDuplex] {
+        case t =>
+          var msg = Promise[String]()
+          val iteratee = Iteratee.foreach[String] {
+            m =>
+              msg.success(m)
+          }
+
+          t.out |>> iteratee
+
+          msg.future must beEqualTo(Frames.Prelude.xhrStreaming).await
+          msg = Promise[String]()
+
+
+          session ! OutgoingRaw("1")
+
+          msg.future must beEqualTo("1\n").await
+          msg = Promise[String]()
+
+          (session ? "get transport")(SockJs.Timeout) must beLike[Any] {
+            case Some(a) =>
+              a must beAnInstanceOf[ActorRef]
+          }.await
+
+
+          session ! OutgoingRaw("2")
+          msg.future must beEqualTo("2\n").await
       }.await
     }
   }

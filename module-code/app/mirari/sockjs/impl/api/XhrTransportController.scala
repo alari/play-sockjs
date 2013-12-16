@@ -54,6 +54,19 @@ object XhrTransportController extends SockJsController with SockJsTransports {
         case None =>
           NotFound
       }
+  }
 
+  def xhrStream(service: ActorRef, session: String) = Action.async {
+    implicit request =>
+      createSession(service, session).flatMap {
+        s =>
+          xhrStreamingTransport(s, maxLength).map {
+            out =>
+              Ok.chunked(out).withHeaders(
+                CONTENT_TYPE -> "application/javascript;charset=UTF-8",
+                CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0"
+              ).withHeaders(cors: _*)
+          }
+      }
   }
 }

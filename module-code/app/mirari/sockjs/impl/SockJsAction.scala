@@ -55,7 +55,9 @@ case class XhrSendOptions(session: String) extends SockJsAction{
   override def handler(service: ActorRef) = XhrTransportController.opts
 }
 
-case class XhrStreaming(session: String) extends SockJsAction
+case class XhrStreaming(session: String) extends SockJsAction {
+  override def handler(service: ActorRef) = XhrTransportController.xhrStream(service, session)
+}
 
 case class XhrStreamingOptions(session: String) extends SockJsAction{
   override def handler(service: ActorRef) = XhrTransportController.opts

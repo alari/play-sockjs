@@ -4,7 +4,6 @@ import akka.actor.ActorRef
 import play.api.mvc.{AnyContent, Request, SimpleResult, Action}
 import mirari.sockjs.impl.{Session, SockJsTransports}
 import scala.concurrent.Future
-import java.net.URLDecoder
 import mirari.sockjs.frames.JsonCodec
 import com.fasterxml.jackson.core.JsonParseException
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -31,8 +30,8 @@ object JsonpTransportController extends SockJsController with SockJsTransports {
 
   def jsonpSend(service: ActorRef, session: String) = Action.async(parse.anyContent) {
     implicit request =>
-      createSession(service, session).map {
-        s=>
+      getSession(service, session).map {
+        case Some(s) =>
           jsonpResult {
             message =>
               try {
@@ -46,6 +45,8 @@ object JsonpTransportController extends SockJsController with SockJsTransports {
                 case e: JsonParseException => InternalServerError("Broken JSON encoding.")
               }
           }
+        case None =>
+          NotFound
       }
   }
 

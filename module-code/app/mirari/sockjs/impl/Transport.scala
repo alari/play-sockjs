@@ -3,7 +3,7 @@ package mirari.sockjs.impl
 import play.api.libs.iteratee.{Iteratee, Enumerator, Concurrent}
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import akka.actor._
-import play.api.mvc.{Controller, RequestHeader}
+import play.api.mvc.RequestHeader
 import concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 import mirari.sockjs.impl.Transport.{StreamingFinished, ConnectionInterrupted}
@@ -61,7 +61,10 @@ class ChannelTransport(channel: Future[Concurrent.Channel[String]], initialPaylo
     val msg = frameFormatter(frame)
     channel.map(_.push(msg))
     bytesSent += msg.length
-    bytesSent < maxStreamingBytes
+    if(bytesSent >= maxStreamingBytes) {
+      channel.map(_.eofAndEnd())
+      false
+    } else true
   }
 }
 
@@ -73,6 +76,7 @@ class PromiseTransport(promise: Promise[String]) extends Transport {
 }
 
 object Transport {
+
   import SockJs.Timeout
 
   def fullDuplex(session: ActorRef)(implicit request: RequestHeader): Future[FullDuplex] = {
@@ -144,22 +148,25 @@ object Transport {
   case object ConnectionInterrupted
 
   case object StreamingFinished
+
 }
 
 trait SockJsTransports {
-  self: Controller =>
 
   import Transport._
 
   val MaxBytesSent = 127000
 
-  protected def xhrPollingTransport(session: ActorRef)(implicit request: RequestHeader, ctx: ExecutionContext) = singleFramePlex(session).flatMap {
-    _.out.map(Frames.Format.xhr)
-  }
+  protected def xhrPollingTransport(session: ActorRef)(implicit request: RequestHeader, ctx: ExecutionContext) =
+    singleFramePlex(session).flatMap {
+      _.out.map(Frames.Format.xhr)
+    }
+
   protected def xhrStreamingTransport(session: ActorRef, maxBytesSent: Int = MaxBytesSent)(implicit request: RequestHeader) =
     halfDuplex(session, Frames.Prelude.xhrStreaming, Frames.Format.xhr, maxBytesSent).map {
       _.out
     }
+
   protected def eventsourceTransport(session: ActorRef, maxBytesSent: Int = MaxBytesSent)(implicit request: RequestHeader) =
     halfDuplex(session, Frames.Prelude.eventsource, Frames.Format.eventsource, maxBytesSent).map {
       _.out
@@ -170,9 +177,10 @@ trait SockJsTransports {
       _.out
     }
 
-  protected def jsonpTransport(session: ActorRef, callback: String)(implicit request: RequestHeader, ctx: ExecutionContext) = singleFramePlex(session).flatMap {
-    _.out.map(Frames.Format.jsonp(callback))
-  }
+  protected def jsonpTransport(session: ActorRef, callback: String)(implicit request: RequestHeader, ctx: ExecutionContext) =
+    singleFramePlex(session).flatMap {
+      _.out.map(Frames.Format.jsonp(callback))
+    }
 
   protected def websocketTransport(session: ActorRef)(implicit request: RequestHeader) = fullDuplex(session).map {
     t =>
