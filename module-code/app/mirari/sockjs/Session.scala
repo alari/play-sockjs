@@ -99,7 +99,7 @@ class Session(handlerProps: Props, timeoutMs: Int, heartbeatPeriodMs: Int) exten
       val a = context.actorOf(props, s"transport.$transportId")
       a ! RegisterTransport
       sender ! a
-      handler ! request
+      handler ! SockJsHandler.Request(request)
 
     // Register a new transport
     case RegisterTransport =>
