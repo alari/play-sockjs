@@ -9,7 +9,6 @@ import play.api.libs.json.JsValue
  * @since 12/13/13
  */
 trait SockJsHandler extends Actor {
-
   def send(msg: JsValue) {
     context.parent ! Session.OutgoingMessage(msg)
   }
@@ -22,6 +21,8 @@ object SockJsHandler {
   case class Incoming(msg: JsValue) extends HandlerMessage
 
   case class Request(request: RequestHeader) extends HandlerMessage
+
+  case class Outgoing(msg: JsValue) extends HandlerMessage
 
 
   private[sockjs] class Echo extends SockJsHandler {
