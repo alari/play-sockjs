@@ -93,8 +93,6 @@ object Transport {
       transport =>
         val out = Concurrent.unicast[String]({
           c => p.success(c)
-        }, {
-          transport ! StreamingFinished
         })
         val in = Iteratee.foreach[String] {
           message =>

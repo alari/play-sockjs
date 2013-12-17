@@ -18,7 +18,7 @@ class TransportSpec extends PlaySpecification {
 
   import Session._
   import Transport._
-  import system.dispatcher
+  import concurrent.ExecutionContext.Implicits.global
 
   def genSillySession = system.actorOf(Props(new Actor {
     var tr: ActorRef = null
@@ -153,16 +153,13 @@ class TransportSpec extends PlaySpecification {
 
           val iteratee = Iteratee.foreach[String] {
             m =>
-              play.api.Logger.error(s"\n$m\n")
               msg.success(m)
           }
 
           t.out |>> iteratee
           // payload must be sent only when "out" is called
           // or even out |>>
-          if (payload != null) {
-            msg.future must be(payload).await
-          }
+          msg.future must be(payload).await
           msg = Promise[String]()
 
           session ! OutgoingRaw("z")
@@ -183,18 +180,13 @@ class TransportSpec extends PlaySpecification {
 
       Transport.halfDuplex(session, initialPayload = payload, maxStreamingBytes = 2, frameFormatter = a => s"($a)") should beLike[HalfDuplex] {
         case t =>
-          var msg = Promise[String]()
+          val msg = Promise[String]()
           val iteratee = Iteratee.foreach[String] {
             m =>
               msg.success(m)
           }
 
           t.out |>> iteratee
-
-          if (payload != null) {
-            msg.future must be(payload).await
-          }
-          msg = Promise[String]()
 
           session ! OutgoingRaw("1")
 
