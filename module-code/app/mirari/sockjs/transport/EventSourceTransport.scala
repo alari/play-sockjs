@@ -1,52 +1,32 @@
 package mirari.sockjs.transport
 
-import play.api.mvc.Action
-import play.api.libs.iteratee.Concurrent
-import akka.actor.{ActorRef, Props}
-import mirari.sockjs.service.SockJsSession
-import play.api.libs.EventSource
+import play.api.mvc.{RequestHeader, Action}
+import akka.actor.ActorRef
 import concurrent.ExecutionContext.Implicits.global
+import mirari.sockjs.{SockJsService, Frames}
 
 /**
  * @author alari
- * @since 12/11/13
+ * @since 12/16/13
  */
-class EventSourceTransport(channel: Concurrent.Channel[String], maxBytesStreaming: Int) extends TransportActor {
-  var bytesSent = 0
+private[transport] trait EventSourceTransport {
+  self: SockJsController with SockJsService =>
 
-
-  def sendFrame(m: String): Boolean = {
-    //val msg = s"data: $m\r\n\r\n"
-    bytesSent += m.length
-    println("EventSource ::<<<<<<<<< " + m)
-    channel push m
-    if (bytesSent < maxBytesStreaming)
-      true
-    else {
-      channel.eofAndEnd()
-      false
+  private def eventsourceTransport(session: ActorRef)(implicit request: RequestHeader) =
+    Transport.halfDuplex(session, Frames.Prelude.eventsource, Frames.Format.eventsource, maxBytesSent).map {
+      _.out
     }
-  }
-}
 
-object EventSourceController extends TransportController {
-
-  import akka.pattern.ask
-
-  def eventsource(service: String, server: String, session: String) = Action.async {
+  private[sockjs] def eventsource(session: String) = Action.async {
     implicit request =>
-      withSessionFlat(service, session) {
-        ss =>
-          val (enum, channel) = Concurrent.broadcast[String]
-
-          ss ? SockJsSession.CreateAndRegister(Props(new EventSourceTransport(channel, 127000)), "eventsource", request) map {
-            case transport: ActorRef =>
-              Ok.chunked(
-                enum &> EventSource()
-              ).as("text/event-stream").withHeaders(
-                  CONTENT_TYPE -> "text/event-stream;charset=UTF-8",
-                  CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0")
-                .withHeaders(cors: _*)
+      createSession(session).flatMap {
+        s =>
+          eventsourceTransport(s).map {
+            out =>
+              Ok.chunked(out).withHeaders(
+                CONTENT_TYPE -> "text/event-stream;charset=UTF-8",
+                CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0")
+                .withHeaders(cors: _*).withCookies(cookies: _*)
           }
       }
   }

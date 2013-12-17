@@ -1,78 +1,36 @@
 package mirari.sockjs.transport
 
-import play.api.mvc.Action
-import play.api.libs.iteratee.Concurrent
-import mirari.sockjs.frames.StringEscapeUtils
-import scala.concurrent.Future
-import mirari.sockjs.service.SockJsSession
-import akka.actor.{ActorRef, Props}
+import play.api.mvc.{RequestHeader, Action}
+import akka.actor.ActorRef
 import concurrent.ExecutionContext.Implicits.global
-
+import scala.concurrent.Future
+import mirari.sockjs.{Frames, SockJsService}
 
 /**
  * @author alari
- * @since 12/11/13
+ * @since 12/16/13
  */
-class HtmlFileTransport(callback: String, channel: Concurrent.Channel[String], maxBytesStreaming: Int) extends TransportActor {
-  var bytesSent = 0
+private[transport] trait HtmlFileTransport {
+  self: SockJsController with SockJsService =>
 
-  val Html = s"""
-    <!doctype html>
-<html><head>
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-</head><body><h2>Don't panic!</h2>
-  <script>
-    document.domain = document.domain;
-    var c = parent.$callback;
-    c.start();
-    function p(d) {c.message(d);};
-    window.onload = function() {c.stop();};
-  </script>
-    """.replaceAll( """(?m)\s+$""", "")
-
-  override def doRegister() {
-    channel push Html
-    super.doRegister()
-  }
-
-  def sendFrame(m: String): Boolean = {
-
-    val msg = "<script>\np(\"" + StringEscapeUtils.escapeJavaScript(m) + "\");\r\n</script>"
-
-    bytesSent += msg.length
-    println("HtmlFile ::<<<<<<<<< " + m)
-    channel push msg
-    if (bytesSent < maxBytesStreaming)
-      true
-    else {
-      channel.eofAndEnd()
-      false
+  private def htmlfileTransport(session: ActorRef, callback: String)(implicit request: RequestHeader) =
+    Transport.halfDuplex(session, Frames.Prelude.htmlfile(callback), Frames.Format.htmlfile, maxBytesSent).map {
+      _.out
     }
-  }
-}
 
-object HtmlFileController extends TransportController {
-
-  import akka.pattern.ask
-
-  def htmlfile(service: String, server: String, session: String) = Action.async {
+  private[sockjs] def htmlfile(session: String) = Action.async {
     implicit request =>
-
-      withSessionFlat(service, session) {
-        ss =>
+      createSession(session).flatMap {
+        s =>
           request.getQueryString("c").map {
             callback =>
-              val (enum, channel) = Concurrent.broadcast[String]
-              ss ? SockJsSession.CreateAndRegister(Props(new HtmlFileTransport(callback, channel, 12700)), "htmlfile", request) map {
-                case transport: ActorRef =>
-                  Ok.chunked(enum).as("text/html; charset=UTF-8")
-                    .withHeaders(CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0")
-                    .withHeaders(cors: _*)
-                case _ =>
-                  InternalServerError
+              htmlfileTransport(s, callback).map {
+                out =>
+                  Ok.chunked(out).withHeaders(
+                    CONTENT_TYPE -> "text/html;charset=UTF-8",
+                    CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0")
+                    .withHeaders(cors: _*).withCookies(cookies: _*)
               }
-
           }.getOrElse(Future.successful(InternalServerError("\"callback\" parameter required\n")))
       }
   }

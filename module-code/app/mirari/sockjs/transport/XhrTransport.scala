@@ -1,108 +1,51 @@
 package mirari.sockjs.transport
 
-/**
- * @author alari
- * @since 12/10/13
- */
-
-import scala.Array.canBuildFrom
-import scala.concurrent.Promise
-import akka.actor.{ActorRef, PoisonPill, Props, actorRef2Scala}
-import play.api.libs.iteratee.Concurrent
-import play.api.libs.json.Json
+import akka.actor.ActorRef
+import play.api.mvc.{RequestHeader, Action}
 import com.fasterxml.jackson.core.JsonParseException
-import mirari.sockjs.service.SockJsSession
-import mirari.sockjs.frames.{SockJsFrames, JsonCodec}
-
-class XhrPollingActor(promise: Promise[String]) extends TransportActor {
-  def sendFrame(msg: String): Boolean = {
-    play.api.Logger.info(s"SENDING FRAME $msg")
-    promise success msg + "\n"
-    false
-  }
-
-  override def postStop() {
-    //context.parent ! SockJsSession.Close(1002, "Connection interrupted") //FIXME: this should be closing the session but it works fine by mistake!!!!
-    play.api.Logger.debug("xhr polling poststop")
-    context.parent ! SockJsSession.Unregister
-    super.postStop()
-  }
-}
-
-class XhrStreamingActor(channel: Concurrent.Channel[Array[Byte]], maxBytesStreaming: Int)
-  extends TransportActor {
-  var bytesSent = 0
-
-  override def doRegister() {
-    channel push SockJsFrames.XHR_STREAM_H_BLOCK
-    session ! SockJsSession.Register
-  }
-
-  def sendFrame(msg: String) = {
-    val bytes = s"$msg\n".toArray.map(_.toByte)
-    bytesSent += bytes.length
-    channel push bytes
-    if (bytesSent < maxBytesStreaming)
-      true
-    else {
-      channel.eofAndEnd()
-      false
-    }
-  }
-
-  override def postStop() {
-    channel push Array[Byte]()
-    session ! SockJsSession.Close(1002, "Connection interrupted")
-    super.postStop()
-  }
-}
-
-
-import play.api.mvc.Action
-import concurrent.ExecutionContext.Implicits.global
-import akka.pattern.ask
-
+import scala.concurrent.ExecutionContext.Implicits.global
+import play.api.libs.json.Json
+import scala.concurrent.ExecutionContext
+import mirari.sockjs.{JsonCodec, Session, Frames, SockJsService}
 
 /**
  * @author alari
- * @since 12/10/13
+ * @since 12/16/13
  */
-object XhrController extends TransportController {
-  val maxBytesStreaming = 4096
-  val maxLength = 102400
+private[transport] trait XhrTransport {
+  self: SockJsService with SockJsController =>
 
+  import Transport._
 
-  def xhr(service: String, server: String, session: String) = Action.async {
+  private def xhrPollingTransport(session: ActorRef)(implicit request: RequestHeader, ctx: ExecutionContext) =
+    singleFramePlex(session).flatMap {
+      _.out.map(Frames.Format.xhr)
+    }
+
+  private def xhrStreamingTransport(session: ActorRef, maxBytesSent: Int = maxBytesSent)(implicit request: RequestHeader) =
+    halfDuplex(session, Frames.Prelude.xhrStreaming, Frames.Format.xhr, maxBytesSent).map {
+      _.out
+    }
+
+  private[sockjs] def xhrOptions = CORSOptions("OPTIONS", "POST")
+
+  private[sockjs] def xhrPolling(session: String) = Action.async {
     implicit request =>
-      play.api.Logger.debug("_____xhr_polling = " + session)
-      withSessionFlat(service, session) {
-        ss =>
-          play.api.Logger.debug(ss.toString())
-          val promise = Promise[String]()
-          val props = Props(classOf[XhrPollingActor], promise)
-          play.api.Logger.debug("we are there")
-          ss ! SockJsSession.CreateAndRegister(props, "xhr_polling", request)
-          promise.future.map {
-            m ⇒
-              Ok(m.toString)
-                .withHeaders(
-                  CONTENT_TYPE -> "application/javascript;charset=UTF-8",
-                  CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0")
-                .withHeaders(cors: _*)
-          }
+      createSession(session).flatMap {
+        s =>
+          xhrPollingTransport(s).map(Ok(_).withHeaders(
+            CONTENT_TYPE -> "application/javascript;charset=UTF-8",
+            CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0"
+          ).withHeaders(cors: _*).withCookies(cookies: _*))
       }
   }
 
-  def xhrOpts(service: String, server: String, session: String) = Action {
-    implicit request =>
-      handleCORSOptions("OPTIONS", "POST")
-  }
 
-  def xhr_send(service: String, server: String, session: String) = Action.async(parse.anyContent) {
+  private[sockjs] def xhrSend(session: String) = Action.async(parse.anyContent) {
     implicit request =>
-      withExistingSession(service, session) {
-        ss =>
-          val message: String = request.body.asRaw.flatMap(r ⇒ r.asBytes(maxLength).map(b ⇒ new String(b)))
+      getSession(session).map {
+        case Some(s) =>
+          val message: String = request.body.asRaw.flatMap(r ⇒ r.asBytes(maxBytesReceived).map(b ⇒ new String(b)))
             .getOrElse(request.body.asText
             .orElse(request.body.asJson map Json.stringify)
             .getOrElse(""))
@@ -111,47 +54,32 @@ object XhrController extends TransportController {
             InternalServerError("Payload expected.")
           } else
             try {
-              val contentType = Transport.CONTENT_TYPE_PLAIN
-              println(s"XHR Send -->>>>>:::: $message, decoded message: ${JsonCodec.decodeJson(message)}")
-              ss ! SockJsSession.Incoming(JsonCodec.decodeJson(message))
+              s ! Session.IncomingJson(JsonCodec.decodeJson(message))
               NoContent
                 .withHeaders(
-                  CONTENT_TYPE -> contentType,
+                  CONTENT_TYPE -> "text/plain; charset=UTF-8",
                   CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0")
-                .withHeaders(cors: _*)
+                .withHeaders(cors: _*).withCookies(cookies: _*)
             } catch {
               case e: JsonParseException ⇒
-                play.api.Logger.debug(s"xhr_send, error in parsing message, errorMessage: ${e.getMessage}")
                 InternalServerError("Broken JSON encoding.")
             }
+        case None =>
+          NotFound
       }
   }
 
-  def xhr_sendOpts(service: String, server: String, session: String) = Action {
+  private[sockjs] def xhrStream(session: String) = Action.async {
     implicit request =>
-      handleCORSOptions("OPTIONS", "POST")
-  }
-
-  def xhr_streaming(service: String, server: String, session: String) = Action.async {
-    implicit request =>
-      withSessionFlat(service, session) {
-        ss =>
-          val (enum, channel) = Concurrent.broadcast[Array[Byte]]
-          ss ? SockJsSession.CreateAndRegister(Props(new XhrStreamingActor(channel, maxBytesStreaming)), "xhr_streaming", request) map {
-            case transport: ActorRef =>
-              Ok.chunked(enum.onDoneEnumerating(transport ! PoisonPill))
-                .withHeaders(
-                  CONTENT_TYPE -> "application/javascript;charset=UTF-8",
-                  CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0")
-                .withHeaders(cors: _*)
-            case _ =>
-              InternalServerError
+      createSession(session).flatMap {
+        s =>
+          xhrStreamingTransport(s, maxBytesSent).map {
+            out =>
+              Ok.chunked(out).withHeaders(
+                CONTENT_TYPE -> "application/javascript;charset=UTF-8",
+                CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0"
+              ).withHeaders(cors: _*).withCookies(cookies: _*)
           }
       }
-  }
-
-  def xhr_streamingOpts(service: String, server: String, session: String) = Action {
-    implicit request =>
-      handleCORSOptions("OPTIONS", "POST")
   }
 }
