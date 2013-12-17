@@ -13,25 +13,37 @@ import scala.concurrent.duration.FiniteDuration
 class ChannelLeaf extends Actor {
   def receive = branchBehaviour orElse pubSubBehaviour
 
-  // subscribe an actor ref (if it's allowed)
-
   private var listeners = Set[ActorRef]()
   private var timeout: Option[Cancellable] = None
 
   import context.dispatcher
   val timeoutDelay = FiniteDuration(10, "seconds")
 
+  def checkTimeout() {
+    if (listeners.isEmpty) launchTimeout()
+  }
+
+  def clearTimeout() {
+    timeout.map(_.cancel())
+    timeout = None
+  }
+
+  def launchTimeout() {
+    if(timeout.isEmpty) timeout = Some(context.system.scheduler.scheduleOnce(timeoutDelay, self, PoisonPill))
+  }
+
+  launchTimeout()
+
   def subscribe(actor: ActorRef) {
     listeners += actor
     context.watch(actor)
-    timeout.map(_.cancel())
-    timeout = None
+    clearTimeout()
   }
 
   def unsubscribe(actor: ActorRef) {
     listeners -= actor
     context.unwatch(actor)
-    if (listeners.isEmpty) timeout = Some(context.system.scheduler.scheduleOnce(timeoutDelay, self, PoisonPill))
+    checkTimeout()
   }
 
   def broadcast(message: Any) {
