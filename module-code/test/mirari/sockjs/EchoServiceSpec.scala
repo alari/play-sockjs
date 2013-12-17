@@ -10,7 +10,7 @@ import akka.actor.{ActorRef, Props}
 class EchoServiceSpec extends PlaySpecification {
   "sockjs system" should {
     "register echo service and create a session" in {
-      SockJs.registerService("echo", Service.Params(Props(new SockJsHandler.Echo))) must beAnInstanceOf[ActorRef].await
+      SockJs.registerService("echo", Service.Params(Props(new SockJsHandler.Echo), 200, 100)) must beAnInstanceOf[ActorRef].await
 
       SockJs.checkSession("echo", "1") must beFalse.await
       SockJs.retrieveSession("echo", "1") must beNone.await

@@ -85,7 +85,7 @@ trait StaticController {
 
   private[sockjs] def rawWebsocket = WebSocket.async[String] {
     request =>
-      import ExecutionContext.Implicits.global
+      import play.api.libs.concurrent.Execution.Implicits._
 
       val p = Promise[Concurrent.Channel[String]]()
       val f = p.future

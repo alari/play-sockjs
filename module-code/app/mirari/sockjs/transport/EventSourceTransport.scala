@@ -2,7 +2,7 @@ package mirari.sockjs.transport
 
 import play.api.mvc.{RequestHeader, Action}
 import akka.actor.ActorRef
-import concurrent.ExecutionContext.Implicits.global
+import play.api.libs.concurrent.Execution.Implicits._
 import mirari.sockjs.{SockJsService, Frames}
 
 /**

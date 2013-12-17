@@ -4,7 +4,6 @@ import akka.actor.ActorRef
 import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future}
 import com.fasterxml.jackson.core.JsonParseException
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.Some
 import play.api.mvc.SimpleResult
 import mirari.sockjs.{JsonCodec, Frames, SockJsService}
@@ -21,6 +20,9 @@ private[transport] trait JsonPTransport {
     Transport.singleFramePlex(session).flatMap {
       _.out.map(Frames.Format.jsonp(callback))
     }
+
+  import play.api.libs.concurrent.Execution.Implicits._
+
 
   private[sockjs] def jsonp(session: String) = Action.async {
     implicit request =>

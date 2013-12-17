@@ -2,7 +2,7 @@ package mirari.sockjs.transport
 
 import akka.actor.ActorRef
 import play.api.mvc._
-import scala.concurrent.ExecutionContext.Implicits.global
+import play.api.libs.concurrent.Execution.Implicits._
 
 /**
  * @author alari

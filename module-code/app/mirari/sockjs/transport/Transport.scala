@@ -4,8 +4,8 @@ import akka.actor.{Props, PoisonPill, ActorRef, Actor}
 import play.api.libs.iteratee.{Iteratee, Enumerator, Concurrent}
 import play.api.mvc.RequestHeader
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{Promise, Future, ExecutionContext}
-import ExecutionContext.Implicits.global
+import scala.concurrent.{Promise, Future}
+import play.api.libs.concurrent.Execution.Implicits._
 
 import com.fasterxml.jackson.core.JsonParseException
 import mirari.sockjs.{SockJs, Session, JsonCodec}

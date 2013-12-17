@@ -18,7 +18,7 @@ class TransportSpec extends PlaySpecification {
 
   import Session._
   import Transport._
-  import concurrent.ExecutionContext.Implicits.global
+  import system.dispatcher
 
   def genSillySession(debug: Boolean = false) = system.actorOf(Props(new Actor {
     var tr: ActorRef = null
@@ -66,7 +66,7 @@ class TransportSpec extends PlaySpecification {
         case t =>
           var msg = Promise[String]()
 
-          val iteratee = Iteratee.foreach[String](msg.success(_))
+          val iteratee = Iteratee.foreach[String]{m => msg.success(m)}
           t.out |>> iteratee
 
           session ! OutgoingRaw("1")
@@ -237,7 +237,7 @@ class TransportSpec extends PlaySpecification {
         case t =>
           var msg = Promise[String]()
 
-          val iteratee = Iteratee.foreach[String](msg.success(_))
+          val iteratee = Iteratee.foreach[String]{m => msg.success(m)}
           t.out |>> iteratee
 
           session ! OutgoingRaw("1")

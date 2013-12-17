@@ -9,9 +9,6 @@ import akka.pattern.ask
  * @since 12/13/13
  */
 object SockJs {
-  val SessionTimeoutMs = 10000
-  val SessionHeartbeatMs = 25000
-
   implicit val system = ActorSystem("sockjs")
   implicit val Timeout = akka.util.Timeout(100)
 

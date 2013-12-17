@@ -1,8 +1,6 @@
 package mirari.sockjs
 
 import akka.actor.{Props, Actor}
-import scala.util.Random
-import play.api.libs.json.Json
 
 /**
  * @author alari (name.alari@gmail.com)
@@ -39,8 +37,8 @@ object Service {
 
   case class Params(
                      handlerProps: Props,
-                     timeoutMs: Int = SockJs.SessionTimeoutMs,
-                     heartbeatPeriodMs: Int = SockJs.SessionHeartbeatMs
+                     timeoutMs: Int,
+                     heartbeatPeriodMs: Int
                      )
 
 

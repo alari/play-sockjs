@@ -12,7 +12,7 @@ import scala.Some
  * @author alari
  * @since 12/13/13
  */
-class Session(handlerProps: Props, timeoutMs: Int = SockJs.SessionTimeoutMs, heartbeatPeriodMs: Int = SockJs.SessionHeartbeatMs) extends Actor {
+class Session(handlerProps: Props, timeoutMs: Int, heartbeatPeriodMs: Int) extends Actor {
 
   import Session._
   import context.dispatcher

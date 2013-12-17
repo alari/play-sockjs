@@ -54,8 +54,8 @@ trait SockJsService extends Router.Routes with SockJsController {
   val handlerProps: Props = Props[SockJsHandler.Echo]
   val websocketEnabled: Boolean = true
   val cookieNeeded: Boolean = false
-  val sessionTimeoutMs: Int = SockJs.SessionTimeoutMs
-  val heartbeatPeriodMs: Int = SockJs.SessionHeartbeatMs
+  val sessionTimeoutMs: Int = 10000
+  val heartbeatPeriodMs: Int = 25000
 
   val maxBytesSent = 128*1024
   val maxBytesReceived = 64*1024

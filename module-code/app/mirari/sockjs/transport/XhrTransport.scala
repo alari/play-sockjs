@@ -3,7 +3,6 @@ package mirari.sockjs.transport
 import akka.actor.ActorRef
 import play.api.mvc.{RequestHeader, Action}
 import com.fasterxml.jackson.core.JsonParseException
-import scala.concurrent.ExecutionContext.Implicits.global
 import play.api.libs.json.Json
 import scala.concurrent.ExecutionContext
 import mirari.sockjs.{JsonCodec, Session, Frames, SockJsService}
@@ -22,10 +21,12 @@ private[transport] trait XhrTransport {
       _.out.map(Frames.Format.xhr)
     }
 
-  private def xhrStreamingTransport(session: ActorRef, maxBytesSent: Int = maxBytesSent)(implicit request: RequestHeader) =
+  private def xhrStreamingTransport(session: ActorRef, maxBytesSent: Int = maxBytesSent)(implicit request: RequestHeader, ctx: ExecutionContext) =
     halfDuplex(session, Frames.Prelude.xhrStreaming, Frames.Format.xhr, maxBytesSent).map {
       _.out
     }
+
+  import play.api.libs.concurrent.Execution.Implicits._
 
   private[sockjs] def xhrOptions = CORSOptions("OPTIONS", "POST")
 
