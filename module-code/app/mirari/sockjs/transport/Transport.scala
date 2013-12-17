@@ -33,7 +33,7 @@ abstract class Transport extends Actor {
 
     case OutgoingRaw(frame) =>
       if (sendFrame(frame)) context.parent ! RegisterTransport
-      else self ! PoisonPill
+      else context.stop(self)
   }
 
   def register() {
@@ -121,7 +121,7 @@ object Transport {
         val out = Concurrent.unicast[String]({
           c => p.success(c)
         }, {
-          transport ! StreamingFinished
+          //transport ! StreamingFinished
         })
 
         HalfDuplex(out)
