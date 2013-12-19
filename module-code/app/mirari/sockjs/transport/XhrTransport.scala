@@ -42,14 +42,11 @@ private[transport] trait XhrTransport {
   }
 
 
-  private[sockjs] def xhrSend(session: String) = Action.async(parse.anyContent) {
+  private[sockjs] def xhrSend(session: String) = Action.async(parse.tolerantText(maxBytesReceived)) {
     implicit request =>
       getSession(session).map {
         case Some(s) =>
-          val message: String = request.body.asRaw.flatMap(r ⇒ r.asBytes(maxBytesReceived).map(b ⇒ new String(b)))
-            .getOrElse(request.body.asText
-            .orElse(request.body.asJson map Json.stringify)
-            .getOrElse(""))
+          val message: String = request.body
           if (message == "") {
             play.api.Logger.error(s"xhr_send error: couldn't read the body, content-type: ${request.contentType}")
             InternalServerError("Payload expected.")
