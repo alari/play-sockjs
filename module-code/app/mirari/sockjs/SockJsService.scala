@@ -24,7 +24,7 @@ trait SockJsService extends Router.Routes with SockJsController {
   def setPrefix(prefix: String) {
     serviceName = prefix.substring(prefix.lastIndexOf('/') + 1)
 
-    import SockJs.system.dispatcher
+    import scala.concurrent.ExecutionContext.Implicits.global
 
     SockJs.registerService(serviceName, Service.Params(
       handlerProps,

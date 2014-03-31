@@ -1,6 +1,6 @@
 package mirari.sockjs
 
-import play.api.test.PlaySpecification
+import play.api.test.{WithApplication, PlaySpecification}
 import akka.actor.{ActorRef, Props}
 
 /**
@@ -9,7 +9,7 @@ import akka.actor.{ActorRef, Props}
  */
 class EchoServiceSpec extends PlaySpecification {
   "sockjs system" should {
-    "register echo service and create a session" in {
+    "register echo service and create a session" in new WithApplication {
       SockJs.registerService("echo", Service.Params(Props(new SockJsHandler.Echo), 200, 100)) must beAnInstanceOf[ActorRef].await
 
       SockJs.checkSession("echo", "1") must beFalse.await

@@ -1,6 +1,6 @@
 package mirari.sockjs
 
-import play.api.test.{FakeRequest, PlaySpecification}
+import play.api.test.{WithApplication, FakeRequest, PlaySpecification}
 import akka.actor._
 import akka.actor.Terminated
 import scala.concurrent.Promise
@@ -20,7 +20,7 @@ class SessionSpec extends PlaySpecification {
   def echoSession() = system.actorOf(Props(new Session(Props(new SockJsHandler.Echo), timeoutMs = 100, heartbeatPeriodMs = 250)))
 
   "session actor" should {
-    "timeout" in {
+    "timeout" in new WithApplication {
       val s = echoSession()
       val isTimedOut = Promise[Boolean]()
       system.actorOf(Props(new Actor {
@@ -38,7 +38,7 @@ class SessionSpec extends PlaySpecification {
       isTimedOut.future must beTrue.await(1, FiniteDuration(200, "milliseconds"))
     }
 
-    "register transport on a new session" in {
+    "register transport on a new session" in new WithApplication {
       val s = echoSession()
       singleFramePlex(s) must beLike[SingleFramePlex] {
         case t =>
@@ -52,7 +52,7 @@ class SessionSpec extends PlaySpecification {
     }
 
 
-    "close the session and send closed messages to new transports" in {
+    "close the session and send closed messages to new transports" in new WithApplication {
       val s = echoSession()
       singleFramePlex(s) must beLike[SingleFramePlex] {
         case t =>
@@ -69,7 +69,7 @@ class SessionSpec extends PlaySpecification {
       }.await
     }
 
-    "reject second transport on a new session" in {
+    "reject second transport on a new session" in new WithApplication {
       val s = echoSession()
       singleFramePlex(s) must beLike[SingleFramePlex] {
         case t =>
@@ -88,7 +88,7 @@ class SessionSpec extends PlaySpecification {
       }.await
     }
 
-    "connect second transport after the first one was used" in {
+    "connect second transport after the first one was used" in new WithApplication {
       val s = echoSession()
       singleFramePlex(s) must beLike[SingleFramePlex] {
         case t =>
@@ -110,7 +110,7 @@ class SessionSpec extends PlaySpecification {
       }.await
     }
 
-    "send heartbeat frames" in {
+    "send heartbeat frames" in new WithApplication {
       val s = echoSession()
       singleFramePlex(s) must beLike[SingleFramePlex] {
         case t =>
@@ -123,7 +123,7 @@ class SessionSpec extends PlaySpecification {
       }.await
     }
 
-    "handle pending messages correctly, send them in a single frame" in {
+    "handle pending messages correctly, send them in a single frame" in new WithApplication {
       val s = echoSession()
       incomingFrame("1", s)
       incomingFrame("2", s)

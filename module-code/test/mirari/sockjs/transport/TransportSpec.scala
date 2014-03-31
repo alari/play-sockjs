@@ -1,6 +1,6 @@
 package mirari.sockjs.transport
 
-import play.api.test.{FakeRequest, PlaySpecification}
+import play.api.test.{WithApplication, FakeRequest, PlaySpecification}
 import akka.actor.{ActorRef, Actor, Props, ActorSystem}
 import play.api.libs.iteratee.{Concurrent, Iteratee}
 import scala.concurrent.Promise
@@ -46,7 +46,7 @@ class TransportSpec extends PlaySpecification {
 
 
   "promise transport" should {
-    "push a single message" in {
+    "push a single message" in new WithApplication {
 
       val session = genSillySession()
 
@@ -59,7 +59,7 @@ class TransportSpec extends PlaySpecification {
   }
 
   "half duplex transport" should {
-    "push several messages" in {
+    "push several messages" in new WithApplication {
       val session = genSillySession()
 
       Transport.halfDuplex(session) should beLike[HalfDuplex] {
@@ -82,7 +82,7 @@ class TransportSpec extends PlaySpecification {
       }.await
     }
 
-    "provide initial payload" in {
+    "provide initial payload" in new WithApplication {
       val session = genSillySession()
 
       Transport.halfDuplex(session, "z") should beLike[HalfDuplex] {
@@ -104,7 +104,7 @@ class TransportSpec extends PlaySpecification {
       }.await
     }
 
-    "respect maximum size of streaming" in {
+    "respect maximum size of streaming" in new WithApplication {
       val session = genSillySession()
 
       Transport.halfDuplex(session, "z", maxStreamingBytes = 2) should beLike[HalfDuplex] {
@@ -143,7 +143,7 @@ class TransportSpec extends PlaySpecification {
       }.await
     }
 
-    "use frame formatter with payload" in {
+    "use frame formatter with payload" in new WithApplication {
       val session = genSillySession(debug = true)
 
       val payload: String = "akka"
@@ -171,7 +171,7 @@ class TransportSpec extends PlaySpecification {
       }.await
     }
 
-    "use frame formatter without payload" in {
+    "use frame formatter without payload" in new WithApplication {
       val session = genSillySession()
 
       Transport.halfDuplex(session, maxStreamingBytes = 2, frameFormatter = a => s"($a)") should beLike[HalfDuplex] {
@@ -195,7 +195,7 @@ class TransportSpec extends PlaySpecification {
       }.await
     }
 
-    "act as xhr stream" in {
+    "act as xhr stream" in new WithApplication {
       val session = genSillySession()
 
       halfDuplex(session, Frames.Prelude.xhrStreaming, Frames.Format.xhr, 3096) must beLike[HalfDuplex] {
@@ -230,7 +230,7 @@ class TransportSpec extends PlaySpecification {
   }
 
   "full duplex transport" should {
-    "push messages like half duplex" in {
+    "push messages like half duplex" in new WithApplication {
       val session = genSillySession()
 
       Transport.fullDuplex(session) should beLike[FullDuplex] {
@@ -253,7 +253,7 @@ class TransportSpec extends PlaySpecification {
       }.await
     }
 
-    "push and consume messages" in {
+    "push and consume messages" in new WithApplication {
       val session = genSillySession()
 
       Transport.fullDuplex(session) should beLike[FullDuplex] {
