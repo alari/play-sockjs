@@ -48,21 +48,21 @@ class SockJs(app: play.api.Application) extends Plugin {
   }
 
   override def onStart() {
-    play.api.Logger.debug("[sockjs] going to run the system")
-    stopSystem()
-
     launchSystem()
-
     play.api.Logger.debug("[sockjs] system is up and running")
 
     super.onStart()
   }
 
   private def launchSystem() {
-    play.api.Logger.debug("[sockjs] launching system")
-    synchronized {
-      actorSystem = Some(ActorSystem(app.configuration.getString("sockjs.system").getOrElse("sockjs")))
-      servicesRef = actorSystem.map(_.actorOf(Props[Services], "services"))
+    if(actorSystem.isDefined && servicesRef.isDefined) {
+      play.api.Logger.debug("[sockjs] system is already launched")
+    } else {
+      play.api.Logger.debug("[sockjs] launching system")
+      synchronized {
+        actorSystem = Some(ActorSystem(app.configuration.getString("sockjs.system").getOrElse("sockjs")))
+        servicesRef = actorSystem.map(_.actorOf(Props[Services], "services"))
+      }
     }
   }
 
