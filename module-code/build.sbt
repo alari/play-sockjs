@@ -2,9 +2,11 @@ name := "play-sockjs"
 
 organization := "play-infra"
 
-version := "0.1"
+crossScalaVersions := Seq("2.10.4", "2.11.1")
 
-play.Project.playScalaSettings
+version := "0.3.0"
+
+lazy val root = (project in file(".")).enablePlugins(play.PlayScala)
 
 scalacOptions ++= Seq(
   "-unchecked",

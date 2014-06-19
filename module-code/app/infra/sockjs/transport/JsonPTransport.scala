@@ -4,8 +4,7 @@ import akka.actor.ActorRef
 import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future}
 import com.fasterxml.jackson.core.JsonParseException
-import scala.Some
-import play.api.mvc.SimpleResult
+import play.api.mvc.Result
 import infra.sockjs.{JsonCodec, Frames}
 import infra.sockjs
 import infra.sockjs.SockJsService
@@ -62,7 +61,7 @@ private[transport] trait JsonPTransport {
       }
   }
 
-  private def jsonpResult(f: String => SimpleResult)(implicit request: Request[AnyContent]): SimpleResult =
+  private def jsonpResult(f: String => Result)(implicit request: Request[AnyContent]): Result =
     if (request.contentType.map(_.toLowerCase).exists(ct => ct.startsWith("application/x-www-form-urlencoded") || ct.startsWith("text/plain")))
       jsonpBody.map(body => f(body))
         .getOrElse(InternalServerError("Payload expected."))

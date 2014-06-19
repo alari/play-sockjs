@@ -17,11 +17,11 @@ private[transport] trait WebsocketTransport {
         (t.in, t.out)
     }
 
-  private[sockjs] def websocket(session: String) = WebSocket.async[String] {
+  private[sockjs] def websocket(session: String) = WebSocket.tryAccept[String] {
     implicit request =>
       createSession(session).flatMap {
         s =>
-          websocketTransport(s)
+          websocketTransport(s).map(Right.apply)
       }
   }
 }

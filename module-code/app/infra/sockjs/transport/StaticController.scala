@@ -83,14 +83,14 @@ trait StaticController {
       }
   }
 
-  private[sockjs] def rawWebsocket = WebSocket.async[String] {
+  private[sockjs] def rawWebsocket = WebSocket.tryAccept[String] {
     request =>
       import play.api.libs.concurrent.Execution.Implicits._
 
       val p = Promise[Concurrent.Channel[String]]()
       val f = p.future
 
-      Future.successful((Iteratee.foreach[String](c => f.map(_.push(c))), Concurrent.unicast[String](onStart = {
+      Future.successful(Right(Iteratee.foreach[String](c => f.map(_.push(c))), Concurrent.unicast[String](onStart = {
         c => p.success(c)
       })))
   }

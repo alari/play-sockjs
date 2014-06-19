@@ -1,5 +1,7 @@
 package infra.sockjs
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.{ActorRef, Props, ActorSystem}
 import scala.concurrent.Future
 import akka.pattern.ask
@@ -33,7 +35,7 @@ class SockJs(app: play.api.Application) extends Plugin {
   @volatile private var actorSystem: Option[ActorSystem] = None
   @volatile private var servicesRef: Option[ActorRef] = None
 
-  private val Timeout = akka.util.Timeout(app.configuration.getInt("sockjs.timeout").getOrElse(100))
+  private val Timeout = akka.util.Timeout(app.configuration.getInt("sockjs.timeout").getOrElse(100).toLong, TimeUnit.MILLISECONDS)
 
   implicit def system: ActorSystem = actorSystem.getOrElse{
     play.api.Logger.warn("[sockjs] Launching ActorSystem on demand")
