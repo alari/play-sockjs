@@ -1,0 +1,26 @@
+@()(implicit request: RequestHeader)
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <script src="https://d1fxtkz8shb9d2.cloudfront.net/sockjs-0.3.min.js"></script>
+        <script>
+        window.ws = new SockJS ( 'http://localhost:9000/echo' ) ;
+        window.ws.onmessage = function ( m ) {
+        console.log ( m ) ;
+        document.getElementById ( 'out' ).value += JSON.stringify ( m.data ) + '\n' ;
+        } ;
+        </script>
+    </head>
+    <body>
+        <div>
+            Hello!
+        </div>
+        <div>
+            <a onclick="ws.send ( JSON.stringify ( { echo : true, ping : true } ) )">ping</a>
+            <a onclick="ws.send ( JSON.stringify ( { url: '/'} ) )">url</a>
+        </div>
+        <br/>
+        <textarea id="out" cols="50" rows="20"></textarea>
+    </body>
+</html>
