@@ -98,7 +98,7 @@ class SockJs(app: play.api.Application) extends Plugin {
     protected type ResourceToClose = ActorSystem
 
     protected def create(): CreateResult = {
-      val system = ActorSystem("application", app.configuration.underlying, app.classloader)
+      val system = ActorSystem("sockjs", app.configuration.underlying, app.classloader)
       play.api.Logger.info("Starting SockJs default Akka system.")
       CreateResult(system, system)
     }
@@ -107,7 +107,7 @@ class SockJs(app: play.api.Application) extends Plugin {
       play.api.Logger.info("Shutdown SockJs default Akka system.")
       systemToClose.shutdown()
 
-      app.configuration.getMilliseconds("play.akka.shutdown-timeout") match {
+      app.configuration.getMilliseconds("sockjs.akka.shutdown-timeout") match {
         case Some(timeout) =>
           try {
             systemToClose.awaitTermination(Duration(timeout, TimeUnit.MILLISECONDS))
