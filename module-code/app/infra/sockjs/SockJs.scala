@@ -1,11 +1,11 @@
 package infra.sockjs
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{TimeoutException, TimeUnit}
 
-import akka.actor.{ActorRef, Props, ActorSystem}
-import scala.concurrent.Future
-import akka.pattern.ask
+import akka.actor.ActorSystem
 import play.api.Plugin
+
+import scala.concurrent.duration.Duration
 
 /**
  * @author alari
@@ -16,82 +16,118 @@ object SockJs {
 
   implicit def system = plugin.system
 
-  implicit def Timeout = plugin.Timeout
+  implicit val Timeout = akka.util.Timeout(1, TimeUnit.SECONDS)
 
-  def registerService(service: String, params: Service.Params): Future[ActorRef] =
-    plugin.registerService(service, params)
+  abstract class ClosableLazy[T <: AnyRef] {
 
-  def checkSession(service: String, id: String): Future[Boolean] =
-    plugin.checkSession(service, id)
+    /**
+     * The type of resource to close when `close()` is called. May be different
+     * from the type of T.
+     */
+    protected type ResourceToClose <: AnyRef
+    /**
+     * The result of calling the `create()` method.
+     *
+     * @param value The value that has been initialized.
+     * @param resourceToClose A resource that has been allocated. This resource will be
+     * passed to `close(ResourceToClose)`  when `close()` is called.
+     */
+    protected case class CreateResult(value: T, resourceToClose: ResourceToClose)
 
-  def retrieveSession(service: String, id: String): Future[Option[ActorRef]] =
-    plugin.retrieveSession(service, id)
+    @volatile
+    private var value: AnyRef = null
+    private var resourceToClose: AnyRef = null
+    private var hasBeenClosed: Boolean = false
 
-  def createSession(service: String, id: String): Future[ActorRef] =
-    plugin.createSession(service, id)
+    /**
+     * Get the value. Calling this method may allocate resources, such as a thread pool.
+     *
+     * Calling this method after the `close()` method has been called will result in an
+     * IllegalStateException.
+     */
+    final def get(): T = {
+      val currentValue = value
+      if (currentValue != null) return currentValue.asInstanceOf[T]
+      synchronized {
+        if (hasBeenClosed) throw new IllegalStateException("Can't get ClosableLazy value after it has been closed")
+        if (value == null) {
+          val result = create()
+          if (result.value == null) throw new IllegalStateException("Can't initialize ClosableLazy to null value")
+          value = result.value
+          resourceToClose = result.resourceToClose
+        }
+        value.asInstanceOf[T]
+      }
+    }
+
+    /**
+     * Close the value. Calling this method is safe, but does nothing, if the value
+     * has not been initialized.
+     */
+    final def close(): Unit = {
+      synchronized {
+        if (!hasBeenClosed && value != null) {
+          val cachedCloseInfo = resourceToClose.asInstanceOf[ResourceToClose]
+          value = null
+          hasBeenClosed = true
+          resourceToClose = null
+          close(cachedCloseInfo)
+        }
+      }
+
+    }
+
+    /**
+     * Called when the lazy value is first initialized. Returns the value, and the
+     * resource to close when `close()` is called.
+     */
+    protected def create(): CreateResult
+
+    /**
+     * Called when `close()` is called. Passed the resource that was originally
+     * returned when `create()` was called.
+     */
+    protected def close(resourceToClose: ResourceToClose)
+  }
 }
 
 class SockJs(app: play.api.Application) extends Plugin {
-  @volatile private var actorSystem: Option[ActorSystem] = None
-  @volatile private var servicesRef: Option[ActorRef] = None
 
-  private val Timeout = akka.util.Timeout(app.configuration.getInt("sockjs.timeout").getOrElse(100).toLong, TimeUnit.MILLISECONDS)
+  private val lazySystem = new SockJs.ClosableLazy[ActorSystem] {
 
-  implicit def system: ActorSystem = actorSystem.getOrElse{
-    play.api.Logger.warn("[sockjs] Launching ActorSystem on demand")
-    launchSystem()
-    actorSystem.getOrElse(throw new IllegalStateException("Cannot launch ActorSystem"))
-  }
+    protected type ResourceToClose = ActorSystem
 
-  def services: ActorRef = servicesRef.getOrElse{
-    play.api.Logger.warn("[sockjs] Launching Services on demand")
-    launchSystem()
-    servicesRef.getOrElse(throw new IllegalStateException("Services Actor is None"))
-  }
+    protected def create(): CreateResult = {
+      val system = ActorSystem("application", app.configuration.underlying, app.classloader)
+      play.api.Logger.info("Starting SockJs default Akka system.")
+      CreateResult(system, system)
+    }
 
-  override def onStart() {
-    launchSystem()
-    play.api.Logger.debug("[sockjs] system is up and running")
+    protected def close(systemToClose: ActorSystem) = {
+      play.api.Logger.info("Shutdown SockJs default Akka system.")
+      systemToClose.shutdown()
 
-    super.onStart()
-  }
-
-  private def launchSystem() {
-    if(actorSystem.isDefined && servicesRef.isDefined) {
-      play.api.Logger.debug("[sockjs] system is already launched")
-    } else {
-      play.api.Logger.debug("[sockjs] launching system")
-      synchronized {
-        actorSystem = Some(ActorSystem(app.configuration.getString("sockjs.system").getOrElse("sockjs")))
-        servicesRef = actorSystem.map(_.actorOf(Props[Services], "services"))
+      app.configuration.getMilliseconds("play.akka.shutdown-timeout") match {
+        case Some(timeout) =>
+          try {
+            systemToClose.awaitTermination(Duration(timeout, TimeUnit.MILLISECONDS))
+          } catch {
+            case te: TimeoutException =>
+              // oh well.  We tried to be nice.
+              play.api.Logger.info(s"Could not shutdown the SockJs Akka system in $timeout milliseconds.  Giving up.")
+          }
+        case None =>
+          // wait until it is shutdown
+          systemToClose.awaitTermination()
       }
     }
   }
 
-  private def stopSystem() {
-    synchronized {
-      servicesRef.map(s => actorSystem.map(_.stop(s)))
-      servicesRef = None
-      actorSystem.map(_.shutdown())
-      actorSystem = None
-    }
-  }
+  def system: ActorSystem = lazySystem.get()
 
   override def onStop() {
-    play.api.Logger.debug("[sockjs] stopping system")
-    stopSystem()
-    super.onStop()
+    lazySystem.close()
   }
 
-  def registerService(service: String, params: Service.Params)(implicit timeout: akka.util.Timeout = Timeout): Future[ActorRef] =
-    (services ? Services.Register(service, params)).mapTo[ActorRef]
 
-  def checkSession(service: String, id: String)(implicit timeout: akka.util.Timeout = Timeout): Future[Boolean] =
-    (services ? Services.SessionExists(service, id)).mapTo[Boolean]
-
-  def retrieveSession(service: String, id: String)(implicit timeout: akka.util.Timeout = Timeout): Future[Option[ActorRef]] =
-    (services ? Services.RetrieveSession(service, id)).mapTo[Option[ActorRef]]
-
-  def createSession(service: String, id: String)(implicit timeout: akka.util.Timeout = Timeout): Future[ActorRef] =
-    (services ? Services.CreateAndRetrieveSession(service, id)).mapTo[ActorRef]
 }

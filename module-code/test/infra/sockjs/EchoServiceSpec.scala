@@ -2,6 +2,7 @@ package infra.sockjs
 
 import play.api.test.{WithApplication, PlaySpecification}
 import akka.actor.{ActorRef, Props}
+import akka.pattern.ask
 
 /**
  * @author alari (name.alari@gmail.com)
@@ -10,16 +11,22 @@ import akka.actor.{ActorRef, Props}
 class EchoServiceSpec extends PlaySpecification {
   "sockjs system" should {
     "register echo service and create a session" in new WithApplication {
-      SockJs.registerService("echo", Service.Params(Props(new SockJsHandler.Echo), 200, 100)) must beAnInstanceOf[ActorRef].await
 
-      SockJs.checkSession("echo", "1") must beFalse.await
-      SockJs.retrieveSession("echo", "1") must beNone.await
+      val service = SockJs.system.actorOf(Props(new Service(Service.Params(Props(new SockJsHandler.Echo), 200, 100))))
 
-      SockJs.createSession("echo", "1") must beAnInstanceOf[ActorRef].await
+      service must beAnInstanceOf[ActorRef]
 
-      SockJs.checkSession("echo", "1") must beTrue.await
-      SockJs.retrieveSession("echo", "1") must beSome[ActorRef].await
-      SockJs.createSession("echo", "1") must beAnInstanceOf[ActorRef].await
+      (service ? Service.SessionExists("1")).mapTo[Boolean] must beFalse.await
+      (service ? Service.RetrieveSession("1")).mapTo[Option[ActorRef]] must beNone.await
+
+      (service ? Service.CreateAndRetrieveSession("1")).mapTo[ActorRef] must beAnInstanceOf[ActorRef].await
+
+
+      (service ? Service.SessionExists("1")).mapTo[Boolean] must beTrue.await
+      (service ? Service.RetrieveSession("1")).mapTo[Option[ActorRef]] must beSome[ActorRef].await
+
+      (service ? Service.CreateAndRetrieveSession("1")).mapTo[ActorRef] must beAnInstanceOf[ActorRef].await
+
     }
   }
 }

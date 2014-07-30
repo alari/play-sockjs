@@ -1,7 +1,7 @@
 package infra.sockjs
 
 import play.core.Router
-import akka.actor.{Props, ActorRef}
+import akka.actor.{ActorSystem, Props, ActorRef}
 import scala.runtime.AbstractPartialFunction
 import play.api.mvc.{Handler, RequestHeader}
 import infra.sockjs.transport.SockJsController
@@ -15,22 +15,19 @@ trait SockJsService extends Router.Routes with SockJsController {
   self =>
 
 
-  private var path: String = ""
-  private var serviceName: String = ""
-  private var serviceActor: ActorRef = SockJs.system.deadLetters
+  private def system: ActorSystem = SockJs.system
 
-  def service = serviceActor
+  private var path: String = ""
+  private var serviceName: String = "sockjs"
+
+  protected lazy val service = system.actorOf( Props(new Service(Service.Params(
+    handlerProps,
+    sessionTimeoutMs,
+    heartbeatPeriodMs))), serviceName)
 
   def setPrefix(prefix: String) {
     serviceName = prefix.substring(prefix.lastIndexOf('/') + 1)
-
-    import scala.concurrent.ExecutionContext.Implicits.global
-
-    SockJs.registerService(serviceName, Service.Params(
-      handlerProps,
-      sessionTimeoutMs,
-      heartbeatPeriodMs)).map(r => serviceActor = r)
-
+    service
     path = prefix
   }
 
