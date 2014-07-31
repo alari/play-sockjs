@@ -4,7 +4,7 @@ organization := "play-infra"
 
 crossScalaVersions := Seq("2.10.4", "2.11.1")
 
-version := "0.3.2"
+version := "0.3.3"
 
 lazy val root = (project in file(".")).enablePlugins(play.PlayScala)
 

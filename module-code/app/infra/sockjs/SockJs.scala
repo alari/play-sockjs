@@ -98,7 +98,7 @@ class SockJs(app: play.api.Application) extends Plugin {
     protected type ResourceToClose = ActorSystem
 
     protected def create(): CreateResult = {
-      val system = ActorSystem("sockjs", app.configuration.underlying, app.classloader)
+      val system = ActorSystem("sockjs", app.configuration.underlying.atPath("sockjs"), app.classloader)
       play.api.Logger.info("Starting SockJs default Akka system.")
       CreateResult(system, system)
     }
