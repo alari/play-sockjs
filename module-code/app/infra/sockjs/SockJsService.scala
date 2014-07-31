@@ -15,7 +15,7 @@ trait SockJsService extends Router.Routes with SockJsController {
   self =>
 
 
-  private def system: ActorSystem = SockJs.system
+  def system: ActorSystem = SockJs.system
 
   private var path: String = ""
   private var serviceName: String = "sockjs"
